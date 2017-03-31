@@ -20,6 +20,12 @@ doExp = 1;
 
 %% IDENTIFY DATA LOCATION
 dataLocation = sprintf('%s/Experiment%.0d',topFolder,doExp);
+figureLocation = sprintf('%s/Experiment%.0d/figures',topFolder,doExp);
+if ~exist(figureLocation,'dir')
+    mkdir(figureLocation);
+else
+end
+
 folderNames=subfolders(sprintf('%s/*20*',dataLocation),1);
 folderNames = folderNames(1:9);
 numSubs = size(folderNames,1);
@@ -68,18 +74,18 @@ else
             fullRCA(c) = rcaSweep(pathNames,binsToUse,freqsToUse,curCond,trialsToUse,nReg,nComp,dataType,chanToCompare,[],rcPlotStyle,forceSourceData);
         end
         rcaH = grabCovFig(gcf);
-        export_fig(sprintf('%s/fullRCA_cond%.0d&%.0d_cov.pdf',dataLocation,curCond(1),curCond(2)),'-pdf','-transparent',rcaH);
+        export_fig(sprintf('%s/fullRCA_cond%.0d&%.0d_cov.pdf',figureLocation,curCond(1),curCond(2)),'-pdf','-transparent',rcaH);
         close all;
         % oddball RCA, first two frequencies 1F1 and 2F1 
         % (always forceSourceData)
         oddRCA(c) = rcaSweep(pathNames,binsToUse,freqsToUse(1:end/2),curCond,trialsToUse,nReg,nComp,dataType,chanToCompare,[],rcPlotStyle,forceSourceData);
         rcaH = grabCovFig(gcf);
-        export_fig(sprintf('%s/oddRCA_cond%.0d&%.0d_cov.pdf',dataLocation,curCond(1),curCond(2)),'-pdf','-transparent',rcaH);
+        export_fig(sprintf('%s/oddRCA_cond%.0d&%.0d_cov.pdf',figureLocation,curCond(1),curCond(2)),'-pdf','-transparent',rcaH);
         close all;
         % carrier RCA, last two frequencies 1F2 and 2F2
         carrierRCA(c) = rcaSweep(pathNames,binsToUse,freqsToUse(end/2+1:end),curCond,trialsToUse,nReg,nComp,dataType,chanToCompare,[],rcPlotStyle,forceSourceData);
         rcaH = grabCovFig(gcf);
-        export_fig(sprintf('%s/carrierRCA_cond%.0d&%.0d_cov.pdf',dataLocation,curCond(1),curCond(2)),'-pdf','-transparent',rcaH);
+        export_fig(sprintf('%s/carrierRCA_cond%.0d&%.0d_cov.pdf',figureLocation,curCond(1),curCond(2)),'-pdf','-transparent',rcaH);
         close all;
     end
     save(saveFileName,'fullRCA','oddRCA','carrierRCA','-append')
@@ -344,8 +350,8 @@ for f = 1:3 % frequency pairs
     figPos(3) = figWidth;
     set(gcf,'pos',figPos);
     if plotSNR        
-        export_fig(sprintf('%s/%s_rc%d_%s_snr.pdf',dataLocation,dataType,f,rcaType),'-pdf','-transparent',gcf);
+        export_fig(sprintf('%s/%s_rc%d_%s_snr.pdf',figureLocation,dataType,f,rcaType),'-pdf','-transparent',gcf);
     else
-        export_fig(sprintf('%s/%s_rc%d_%s.pdf',dataLocation,dataType,f,rcaType),'-pdf','-transparent',gcf);
+        export_fig(sprintf('%s/%s_rc%d_%s.pdf',figureLocation,dataType,f,rcaType),'-pdf','-transparent',gcf);
     end
 end
