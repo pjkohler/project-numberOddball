@@ -13,7 +13,7 @@ setenv('DYLD_LIBRARY_PATH','')
 %% VARIABLES THAT CAN BE CHANGED
 topFolder = '/Volumes/Denali_4D2/kohler/EEG_EXP/DATA/numeroOddball';
 printFigures=true; % set to true if you want to automatically print the figures and save them into the high-level directory where the data are
-launchAnalysis = true;
+launchAnalysis = false;
 trialError = false;
 forceSourceData = false; % generate source data for first instance of rca?
 doExp = 1;
@@ -27,7 +27,7 @@ else
 end
 
 folderNames=subfolders(sprintf('%s/*20*',dataLocation),1);
-folderNames = folderNames(1:9);
+%folderNames = folderNames(1:9);
 numSubs = size(folderNames,1);
 % and string for saving the data
 saveStr = datestr(clock,26);
@@ -54,7 +54,7 @@ if ~launchAnalysis % if users says analysis is not to be launched
     saveFileName = fullfile(dataLocation,tempFile(end).name(1:(end-4))); % grab newest file and loose .mat suffix;
     load(saveFileName);
 else
-    for f = 1:length(folderNames)
+    for f = 1:length(folderNames)-1
         tempFolders = subfolders(folderNames{f},1);
         pathNames{f} = sprintf('%s/Exp_TEXT_HCN_128_Avg',tempFolders{end});
     end
@@ -76,6 +76,13 @@ else
         rcaH = grabCovFig(gcf);
         export_fig(sprintf('%s/fullRCA_cond%.0d&%.0d_cov.pdf',figureLocation,curCond(1),curCond(2)),'-pdf','-transparent',rcaH);
         close all;
+        % create axxRCA
+        if c==1
+            axxRCA = axxRCAmake(folderNames,fullRCA(c).W,curCond,c); % create struct
+        else
+            axxRCA = axxRCAmake(folderNames,fullRCA(c).W,curCond,c,axxRCA);
+        end
+        axxRCA(c).Projected = rcaProject(axxRCA(c).Wave,axxRCA(c).W);
         % oddball RCA, first two frequencies 1F1 and 2F1 
         % (always forceSourceData)
         oddRCA(c) = rcaSweep(pathNames,binsToUse,freqsToUse(1:end/2),curCond,trialsToUse,nReg,nComp,dataType,chanToCompare,[],rcPlotStyle,forceSourceData);
@@ -88,7 +95,7 @@ else
         export_fig(sprintf('%s/carrierRCA_cond%.0d&%.0d_cov.pdf',figureLocation,curCond(1),curCond(2)),'-pdf','-transparent',rcaH);
         close all;
     end
-    save(saveFileName,'fullRCA','oddRCA','carrierRCA','-append')
+    save(saveFileName,'fullRCA','oddRCA','carrierRCA', 'axxRCA,'-append')
     warning('on','all')
 end
 %% rca replaces NaNs with zeroes, correct this
@@ -166,6 +173,15 @@ for d = 1:3 % compute values for both full RCA and merge the split oddball/carri
     end
 end
 
+% values for axxRCA
+for c = 1:3
+    nTps = size(axxRCA(c).Projected{1,1},1);
+    nRCA = size(axxRCA(c).Projected{1,1},2);
+    nSubjs = size(axxRCA(c).Projected,2);
+    axxProjMat(c).ProjMat = reshape(cell2mat(arrayfun(@(x) cat(2,x{:}),axxRCA(c).Projected,'Uni',false)),[nTps,nRCA,2,nSubjs]);
+    axxProjMat(c).avg = mean(axxProjMat(c).ProjMat,4);
+    axxProjMat(c).std = std(axxProjMat(c).ProjMat,[],4);
+end
 %% STATS
 for f = 1:max(freqsToUse)
     for r = 1:6
