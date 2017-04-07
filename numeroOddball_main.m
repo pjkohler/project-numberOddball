@@ -13,7 +13,7 @@ setenv('DYLD_LIBRARY_PATH','')
 %% VARIABLES THAT CAN BE CHANGED
 topFolder = '/Volumes/Denali_4D2/kohler/EEG_EXP/DATA/numeroOddball';
 printFigures=true; % set to true if you want to automatically print the figures and save them into the high-level directory where the data are
-launchAnalysis = false;
+launchAnalysis = true;
 trialError = false;
 forceSourceData = false; % generate source data for first instance of rca?
 doExp = 1;
@@ -27,7 +27,7 @@ else
 end
 
 folderNames=subfolders(sprintf('%s/*20*',dataLocation),1);
-%folderNames = folderNames(1:9);
+folderNames = folderNames(1:10);
 numSubs = size(folderNames,1);
 % and string for saving the data
 saveStr = datestr(clock,26);
@@ -54,7 +54,7 @@ if ~launchAnalysis % if users says analysis is not to be launched
     saveFileName = fullfile(dataLocation,tempFile(end).name(1:(end-4))); % grab newest file and loose .mat suffix;
     load(saveFileName);
 else
-    for f = 1:length(folderNames)-1
+    for f = 1:length(folderNames)
         tempFolders = subfolders(folderNames{f},1);
         pathNames{f} = sprintf('%s/Exp_TEXT_HCN_128_Avg',tempFolders{end});
     end
@@ -95,7 +95,7 @@ else
         export_fig(sprintf('%s/carrierRCA_cond%.0d&%.0d_cov.pdf',figureLocation,curCond(1),curCond(2)),'-pdf','-transparent',rcaH);
         close all;
     end
-    save(saveFileName,'fullRCA','oddRCA','carrierRCA', 'axxRCA,'-append')
+    save(saveFileName,'fullRCA','oddRCA','carrierRCA','axxRCA','-append')
     warning('on','all')
 end
 %% rca replaces NaNs with zeroes, correct this
