@@ -82,7 +82,7 @@ else
         else
             axxRCA = axxRCAmake(folderNames,fullRCA(c).W,curCond,c,axxRCA);
         end
-        axxRCA(c).Projected = rcaProject(axxRCA(c).Wave,axxRCA(c).W);
+        %axxRCA(c).Projected = rcaProject(axxRCA(c).Wave,axxRCA(c).W);
         % oddball RCA, first two frequencies 1F1 and 2F1 
         % (always forceSourceData)
         oddRCA(c) = rcaSweep(pathNames,binsToUse,freqsToUse(1:end/2),curCond,trialsToUse,nReg,nComp,dataType,chanToCompare,[],rcPlotStyle,forceSourceData);
@@ -93,6 +93,13 @@ else
         carrierRCA(c) = rcaSweep(pathNames,binsToUse,freqsToUse(end/2+1:end),curCond,trialsToUse,nReg,nComp,dataType,chanToCompare,[],rcPlotStyle,forceSourceData);
         rcaH = grabCovFig(gcf);
         export_fig(sprintf('%s/carrierRCA_cond%.0d&%.0d_cov.pdf',figureLocation,curCond(1),curCond(2)),'-pdf','-transparent',rcaH);
+        if c==1
+            axxRCAodd = axxRCAmake(folderNames,oddRCA(c).W,curCond,c); % create struct
+            axxRCAcarrier = axxRCAmake(folderNames,carrierRCA(c).W,curCond,c); % create struct
+        else
+            axxRCAodd = axxRCAmake(folderNames,oddRCA(c).W,curCond,c,axxRCAodd);
+            axxRCAcarrier = axxRCAmake(folderNames,carrierRCA(c).W,curCond,c,axxRCAcarrier);
+        end
         close all;
     end
     save(saveFileName,'fullRCA','oddRCA','carrierRCA','axxRCA','-append')
@@ -130,14 +137,17 @@ for d = 1:3 % compute values for both full RCA and merge the split oddball/carri
             curRCA = fullRCA(c);
             freqIdx = freqsToUse;
             rcaIdx = 1;
+            curAxxRCA = axxRCA(c);
         elseif d == 2
             curRCA = oddRCA(c);
             freqIdx = freqsToUse(1:end/2);
             rcaIdx = 2;
+            curAxxRCA = axxRCAodd(c);
         else
             curRCA = carrierRCA(c);
             freqIdx = freqsToUse(end/2+1:end);
             rcaIdx = 2; % we want to store odd and carrier together
+            curAxxRCA = axxRCAcarrier(c);
         end
         [tempDataStrct,tempReal,tempImag] = aggregateData(curRCA.data,curRCA.settings,keepConditions,errorType,trialError);
         realSubjs(freqIdx,1:5,:,:,c,rcaIdx) = permute(tempReal,[3,4,5,2,1]);
@@ -170,18 +180,24 @@ for d = 1:3 % compute values for both full RCA and merge the split oddball/carri
         [snrTmp,noiseTmp] = computeSnr(tempDataStrct,tempNoiseStrct1,tempNoiseStrct2,false);
         snrVals(freqIdx,6,:,c,rcaIdx) = squeeze(snrTmp);
         noiseVals(freqIdx,6,:,c,rcaIdx) = squeeze(noiseTmp);
+        % AxxRCA
+        nTps = size(curAxxRCA.Projected{1,1},1);
+        nRCA = size(curAxxRCA.Projected{1,1},2);
+        nSubjs = size(curAxxRCA.Projected,2);
+        tmp_axxProjMat(c).ProjMat = reshape(cell2mat(arrayfun(@(x) cat(2,x{:}),curAxxRCA.Projected,'Uni',false)),[nTps,nRCA,2,nSubjs]);
+        tmp_axxProjMat(c).avg = nanmean(tmp_axxProjMat(c).ProjMat,4);
+        tmp_axxProjMat(c).std = nanstd(tmp_axxProjMat(c).ProjMat,0,4);
+        tmp_axxProjMat(c).sem = tmp_axxProjMat(c).std./sqrt(nSubjs);
+    end
+    if d == 1
+        axxProjMat = tmp_axxProjMat;
+    elseif d == 2
+        axxProjMatOdd = tmp_axxProjMat;
+    else
+        axxProjMatCarrier = tmp_axxProjMat;
     end
 end
 
-% values for axxRCA
-for c = 1:3
-    nTps = size(axxRCA(c).Projected{1,1},1);
-    nRCA = size(axxRCA(c).Projected{1,1},2);
-    nSubjs = size(axxRCA(c).Projected,2);
-    axxProjMat(c).ProjMat = reshape(cell2mat(arrayfun(@(x) cat(2,x{:}),axxRCA(c).Projected,'Uni',false)),[nTps,nRCA,2,nSubjs]);
-    axxProjMat(c).avg = mean(axxProjMat(c).ProjMat,4);
-    axxProjMat(c).std = std(axxProjMat(c).ProjMat,[],4);
-end
 %% STATS
 for f = 1:max(freqsToUse)
     for r = 1:6
@@ -213,7 +229,7 @@ end
 %% NEW PLOTTING
 close all
 plotSNR = false;
-plotSplit = 0; % 0 plot full RCA, 1 plot split RCA 
+plotSplit = 1; % 0 plot full RCA, 1 plot split RCA 
 xVals = fullRCA(1).settings.freqsToUse; % frequencies are x-values
 bgColors = [1,1,1; 0,0,0];
 subColors =  repmat(distinguishable_colors(4,bgColors),2,1);
@@ -225,12 +241,12 @@ gcaOpts = {'tickdir','out','ticklength',[0.0500,0.0500],'box','off','fontsize',f
 yFigs = nComp+1;
 
 if plotSplit == 1    
-    xFigs = 4;
+    xFigs = 6;
 else
-    xFigs = 3;
+    xFigs = 4;
 end
-figHeight = yFigs * 5;
-figWidth = xFigs * 5;
+figHeight = yFigs * 6;
+figWidth = xFigs * 6;
 
 binVals = fullRCA(1).settings.freqLabels';
 clear egiH;
@@ -240,7 +256,7 @@ for f = 1:3 % frequency pairs
         if r<6            
             if plotSplit == 0
                 curRCA = fullRCA(f);
-                egiH(r,1) = subplot(yFigs,xFigs,xFigs+(r-1)*xFigs);
+                egiH(r,1) = subplot(yFigs,xFigs,(xFigs-1)+(r-1)*xFigs);
                 hold on
                 rcaColorBar = [min(curRCA.A(:,r)),max(curRCA.A(:,r))];
                 newExtreme = max(abs(rcaColorBar));
@@ -248,9 +264,34 @@ for f = 1:3 % frequency pairs
                 mrC.plotOnEgi(curRCA.A(:,r),rcaColorBar);
                 hold off
                 rcaType = 'full';
+                
+                %Axx plot
+                nTps = size(axxProjMat(f).ProjMat,1);
+                subplot(yFigs,xFigs,xFigs+(r-1)*xFigs);
+                dataToPlot = squeeze(axxProjMat(f).avg(:,r,:));
+                errorToPLot = squeeze(axxProjMat(f).sem(:,r,:));
+                AxxyMin = floor(min(axxProjMat(f).avg(:)-axxProjMat(f).sem(:)));
+                AxxyMax = ceil(max(axxProjMat(f).avg(:)+axxProjMat(f).sem(:)));
+                AxxyUnit = 2;
+                hold on
+                for c=1:2
+                    AxxH(r) = plot(1:nTps,dataToPlot(:,c),'-','LineWidth',lWidth,'Color',subColors(c,:));
+                    fill([(1:nTps)';flipud((1:nTps)')],[dataToPlot(:,c)-errorToPLot(:,c);flipud(dataToPlot(:,c)+errorToPLot(:,c))],subColors(c,:),'EdgeColor',subColors(c,:),'LineWidth',0.2);
+                    alpha(0.2);
+                end
+                ylim([AxxyMin,AxxyMax]);
+                xlim([-5,nTps+5]);
+                set(gca,gcaOpts{:},'xtick',[1,nTps],'xticklabel',{'1',num2str(nTps)},'ytick',AxxyMin:AxxyUnit:AxxyMax);
+                if r == 1
+                    titleStr = 'Axx Wave';
+                    title(titleStr);
+                end
+                hold off
+                
             else
                 curRCA = oddRCA(f);
-                egiH(r,1) = subplot(yFigs,xFigs,1+(r-1)*xFigs);
+                %egiH(r,1) = subplot(yFigs,xFigs,1+(r-1)*xFigs); %Probably need to change this
+                egiH(r,1) = subplot(yFigs,xFigs,2+(r-1)*xFigs); %New Candidate
                 hold on
                 rcaColorBar = [min(curRCA.A(:,r)),max(curRCA.A(:,r))];
                 newExtreme = max(abs(rcaColorBar));
@@ -258,7 +299,7 @@ for f = 1:3 % frequency pairs
                 mrC.plotOnEgi(curRCA.A(:,r),rcaColorBar);
                 hold off
                 curRCA = carrierRCA(f);
-                egiH(r,2) = subplot(yFigs,xFigs,xFigs+(r-1)*xFigs);
+                egiH(r,2) = subplot(yFigs,xFigs,(xFigs-1)+(r-1)*xFigs); %I think this one is correct
                 hold on
                 rcaColorBar = [min(curRCA.A(:,r)),max(curRCA.A(:,r))];
                 newExtreme = max(abs(rcaColorBar));
@@ -266,11 +307,59 @@ for f = 1:3 % frequency pairs
                 mrC.plotOnEgi(curRCA.A(:,r),rcaColorBar);
                 hold off
                 rcaType = 'split';
+                
+                %Axx plot
+                % Odd
+                cur_axxProjMat = axxProjMatOdd(f);
+                nTps = size(cur_axxProjMat.ProjMat,1);
+                subplot(yFigs,xFigs,1+(r-1)*xFigs);
+                dataToPlot = squeeze(cur_axxProjMat.avg(:,r,:));
+                errorToPLot = squeeze(cur_axxProjMat.sem(:,r,:));
+                AxxyMin = floor(min(cur_axxProjMat.avg(:)-cur_axxProjMat.sem(:)));
+                AxxyMax = ceil(max(cur_axxProjMat.avg(:)+cur_axxProjMat.sem(:)));
+                AxxyUnit = 2;
+                hold on
+                for c=1:2
+                    AxxH(r) = plot(1:nTps,dataToPlot(:,c),'-','LineWidth',lWidth,'Color',subColors(c,:));
+                    fill([(1:nTps)';flipud((1:nTps)')],[dataToPlot(:,c)-errorToPLot(:,c);flipud(dataToPlot(:,c)+errorToPLot(:,c))],subColors(c,:),'EdgeColor',subColors(c,:),'LineWidth',0.2);
+                    alpha(0.2);
+                end
+                ylim([AxxyMin,AxxyMax]);
+                xlim([-5,nTps+5]);
+                set(gca,gcaOpts{:},'xtick',[1,nTps],'xticklabel',{'1',num2str(nTps)},'ytick',AxxyMin:AxxyUnit:AxxyMax);
+                if r == 1
+                    titleStr = 'Oddball Axx Wave';
+                    title(titleStr);
+                end
+                hold off
+                
+                %Carrier
+                cur_axxProjMat = axxProjMatCarrier(f);
+                nTps = size(cur_axxProjMat.ProjMat,1);
+                subplot(yFigs,xFigs,xFigs+(r-1)*xFigs);
+                dataToPlot = squeeze(cur_axxProjMat.avg(:,r,:));
+                errorToPLot = squeeze(cur_axxProjMat.sem(:,r,:));
+                AxxyMin = floor(min(cur_axxProjMat.avg(:)-cur_axxProjMat.sem(:)));
+                AxxyMax = ceil(max(cur_axxProjMat.avg(:)+cur_axxProjMat.sem(:)));
+                hold on
+                for c=1:2
+                    AxxH(r) = plot(1:nTps,dataToPlot(:,c),'-','LineWidth',lWidth,'Color',subColors(c,:));
+                    fill([(1:nTps)';flipud((1:nTps)')],[dataToPlot(:,c)-errorToPLot(:,c);flipud(dataToPlot(:,c)+errorToPLot(:,c))],subColors(c,:),'EdgeColor',subColors(c,:),'LineWidth',0.2);
+                    alpha(0.2);
+                end
+                ylim([AxxyMin,AxxyMax]);
+                xlim([-5,nTps+5]);
+                set(gca,gcaOpts{:},'xtick',[1,nTps],'xticklabel',{'1',num2str(nTps)},'ytick',AxxyMin:AxxyUnit:AxxyMax);
+                if r == 1
+                    titleStr = 'Carrier Axx Wave';
+                    title(titleStr);
+                end
+                hold off
             end
         else
         end
         for t = 1:2
-            subplot(yFigs,xFigs,(xFigs-2)+(r-1)*xFigs+(t-1));
+            subplot(yFigs,xFigs,(xFigs-3)+(r-1)*xFigs+(t-1));
             numFreqs = max(freqsToUse)/2;
             curIdx = (freqsToUse(1:end/2))+(t-1)*numFreqs;
              
@@ -352,7 +441,7 @@ for f = 1:3 % frequency pairs
     drawnow;
     for r = 1:5;
         for z = 1:size(egiH,2);
-            addVal = 2;
+            addVal = 1;
             newPos = get(egiH(r,z),'position');
             newPos(1) = newPos(1)-(newPos(3)*addVal/2);
             newPos(2) = newPos(2)-(newPos(4)*addVal/2);
