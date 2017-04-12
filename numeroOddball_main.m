@@ -48,6 +48,8 @@ dataType = 'RLS'; % can also be 'DFT' if you have DFT exports
 rcPlotStyle = 'matchMaxSignsToRc1'; % not req'd. see 'help rcaRun', can be: 'matchMaxSignsToRc1' (default) or 'orig'
 
 %% call the function --- USER runs this section (no editing necessary) ---
+% generate "filter" for comparison data
+wComparison=zeros(128,1); wComparison(chanToCompare)=1; 
 
 if ~launchAnalysis % if users says analysis is not to be launched
     tempFile = dir([dataLocation,'/rcaData_*.mat']);
