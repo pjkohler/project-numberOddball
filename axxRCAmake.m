@@ -27,7 +27,11 @@ for f = 1:length(folderNames)
     axxRCA(c).Wave(:,f) = {readyStrct{1}.Wave, readyStrct{2}.Wave};
 end
 
+nanDims = [1,2];
+axxRCA(c).Wave = cellfun(@(x) Zero2NaN(x,nanDims),axxRCA(c).Wave,'uni',false);
 %axxRCA(c).Projected = rcaProject(axxRCA(c).Wave,axxRCA(c).W);
 axxRCA(c).Projected = rcaProject(axxRCA(c).Wave,W);
+axxRCA(c).Projected = cellfun(@(x) Zero2NaN(x,nanDims),axxRCA(c).Projected,'uni',false);
+
 
 
