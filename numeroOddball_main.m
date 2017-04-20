@@ -287,7 +287,7 @@ for f = 1:3 % frequency pairs
     nReps = [6 5 6];
     xValsAxx = linspace(0,1000/carrierFreqs(f)*nReps(f),nTps+1);
     xValsAxx = xValsAxx(2:end);
-    stimOnset = xValsAxx(round(linspace(1,length(xValsAxx),nReps(f)+1)));
+    stimOnset = xValsAxx(floor(linspace(1,length(xValsAxx),nReps(f)+1)));
     stimOnset = stimOnset(1:end-1);
     figure;
     for r = 1:yFigs 
