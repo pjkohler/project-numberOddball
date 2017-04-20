@@ -1,9 +1,21 @@
 function numeroOddball_main(foldersToUse,plotSplit,chanToCompare)
-% foldersToUse range of olders in foldernames to use e.g. 1:15
-%  plotSplit: 0 = split fullRCA data; 1 = use oddRCA and carrierRCA for plotting
-%  chanToCompare: electrode to compare and include in plots: Typically 75
+    if nargin == 0
+        foldersToUse = [];
+        % foldersToUse range of olders in foldernames to use e.g. 1:15
+    else
+    end
+    if nargin < 2
+        plotSplit = false;
+        %  plotSplit: 0 = split fullRCA data; 1 = use oddRCA and carrierRCA for plotting
+    else
+    end
+    if nargin <3
+        chanToCompare = 75;
+        %  chanToCompare: electrode to compare and include in plots: Typically 75
+    else
+    end
+
 %% add paths
-clear all except codeFolder; 
 close all;
 if ~exist('codeFolder','var')
     codeFolder = '/Users/kohler/code';
@@ -31,7 +43,10 @@ else
 end
 
 folderNames=subfolders(sprintf('%s/*20*',dataLocation),1);
-folderNames = folderNames(foldersToUse);
+if ~isempty(foldersToUse)
+    folderNames = folderNames(foldersToUse);
+else
+end
 numSubs = size(folderNames,1);
 % and string for saving the data
 saveStr = datestr(clock,26);
