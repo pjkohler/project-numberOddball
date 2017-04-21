@@ -268,7 +268,7 @@ subColors =  repmat(distinguishable_colors(4,bgColors),2,1);
 subColors = subColors(condsToUse,:);
 lWidth = 1;
 fSize = 8;
-gcaOpts = {'tickdir','out','ticklength',[0.0500,0.0500],'box','off','fontsize',fSize,'fontname','Arial','linewidth',lWidth};
+gcaOpts = {'tickdir','out','ticklength',[0.0200,0.0200],'box','off','fontsize',fSize,'fontname','Arial','linewidth',lWidth};
 
 yFigs = nComp+1;
 
@@ -336,12 +336,13 @@ for f = 1:3 % frequency pairs
             subplot(yFigs,xFigs,[(xFigs-1)+(r-1)*xFigs, xFigs+(r-1)*xFigs]);
             dataToPlot = squeeze(axxProjMat(f).avg(:,r,:));
             errorToPLot = squeeze(axxProjMat(f).sem(:,r,:));
-            AxxyMin(1) = floor((min(axxProjMat(f).avg(:)-axxProjMat(f).sem(:)))/2)*2;
-            AxxyMax(1) = ceil((max(axxProjMat(f).avg(:)+axxProjMat(f).sem(:)))/2)*2;
-            AxxyUnit(1) = 2;
-            AxxyUnit(2) = 1;
-            AxxyMax(2) =  AxxyMax(1)/2; 
-            AxxyMin(2) =  AxxyMin(1); 
+            AxxyMin = floor(min((min(axxProjMat(f).avg(:,r,:)-axxProjMat(f).sem(:,r,:)))/2))*2;
+            AxxyMax = ceil(max((max(axxProjMat(f).avg(:,r,:)+axxProjMat(f).sem(:,r,:)))/2))*2;
+            if ( AxxyMax-AxxyMin ) > 10
+                AxxyUnit = 2;
+            else
+                AxxyUnit = 1;
+            end
 
 
             hold on
@@ -352,16 +353,9 @@ for f = 1:3 % frequency pairs
                 %fill([(xValsAxx)';flipud((xValsAxx)')],[dataToPlot(:,c)-errorToPLot(:,c);flipud(dataToPlot(:,c)+errorToPLot(:,c))],subColors(c,:),'EdgeColor',subColors(c,:),'LineWidth',0.2);
                 %alpha(0.2);
             end
-            if r<3
-                ylim([AxxyMin(1),AxxyMax(1)]);
-                curYticks = AxxyMin(1):AxxyUnit(1):AxxyMax(1);
-            else
-                ylim([AxxyMin(2),AxxyMax(2)]);
-                curYticks = AxxyMin(2):AxxyUnit(2):AxxyMax(2);
-            end
-
+            ylim([AxxyMin,AxxyMax]);
             xlim([0,xValsAxx(end)]);
-            set(gca,gcaOpts{:},'xtick',axxTicks{f},'xticklabel',cellfun(@(x) num2str(x),num2cell(axxTicks{f}),'uni',false),'ytick',curYticks);
+            set(gca,gcaOpts{:},'xtick',axxTicks{f},'xticklabel',cellfun(@(x) num2str(x),num2cell(axxTicks{f}),'uni',false),'ytick',AxxyMin:AxxyUnit:AxxyMax);
             yLine = repmat(get(gca,'YLim'),nReps(f),1)';
             line(repmat(stimOnset,2,1),yLine,'Color','black');
             if r == 1
@@ -378,24 +372,23 @@ for f = 1:3 % frequency pairs
             subplot(yFigs,xFigs,[1+(r-1)*xFigs, 2+(r-1)*xFigs]);
             dataToPlot = squeeze(cur_axxProjMat.avg(:,r,:));
             errorToPLot = squeeze(cur_axxProjMat.sem(:,r,:));
-            AxxyMin = floor(min(cur_axxProjMat.avg(:)-cur_axxProjMat.sem(:)));
-            AxxyMax = ceil(max(cur_axxProjMat.avg(:)+cur_axxProjMat.sem(:)));
-            AxxyUnit = 2;
+            AxxyMin = floor(min((min(cur_axxProjMat.avg(:,r,:)-cur_axxProjMat.sem(:,r,:)))/2))*2;
+            AxxyMax = ceil(max((max(cur_axxProjMat.avg(:,r,:)+cur_axxProjMat.sem(:,r,:)))/2))*2;
+            if ( AxxyMax-AxxyMin ) > 10
+                AxxyUnit = 2;
+            else
+                AxxyUnit = 1;
+            end
             hold on
             for c=1:2
                 AxxH(r) = plot(xValsAxx,dataToPlot(:,c),'-','LineWidth',lWidth,'Color',subColors(c,:));
-                fill([(xValsAxx)';flipud((xValsAxx)')],[dataToPlot(:,c)-errorToPLot(:,c);flipud(dataToPlot(:,c)+errorToPLot(:,c))],subColors(c,:),'EdgeColor',subColors(c,:),'LineWidth',0.2);
-                alpha(0.2);
+                ErrorBars(xValsAxx',dataToPlot(:,c),errorToPLot(:,c),'color',subColors(c,:));
+                %fill([(xValsAxx)';flipud((xValsAxx)')],[dataToPlot(:,c)-errorToPLot(:,c);flipud(dataToPlot(:,c)+errorToPLot(:,c))],subColors(c,:),'EdgeColor',subColors(c,:),'LineWidth',0.2);
+                %alpha(0.2);
             end
-            if r==1
-                ylim([AxxyMin(1),AxxyMax(1)]);
-                curYticks = AxxyMin(1):AxxyUnit(1):AxxyMax(1);
-            else
-                ylim([AxxyMin(2),AxxyMax(2)]);
-                curYticks = AxxyMin(2):AxxyUnit(2):AxxyMax(2);
-            end
+            ylim([AxxyMin,AxxyMax]);
             xlim([0,xValsAxx(end)]);
-            set(gca,gcaOpts{:},'xtick',axxTicks{f},'xticklabel',cellfun(@(x) num2str(x),num2cell(axxTicks{f}),'uni',false),'ytick',curYticks);
+            set(gca,gcaOpts{:},'xtick',axxTicks{f},'xticklabel',cellfun(@(x) num2str(x),num2cell(axxTicks{f}),'uni',false),'ytick',AxxyMin:AxxyUnit:AxxyMax);
             yLine = repmat(get(gca,'YLim'),nReps(f),1)';
             line(repmat(stimOnset,2,1),yLine,'Color','black');
             if r == 1
@@ -411,13 +404,19 @@ for f = 1:3 % frequency pairs
             subplot(yFigs,xFigs,[(xFigs-1)+(r-1)*xFigs,xFigs+(r-1)*xFigs]);
             dataToPlot = squeeze(cur_axxProjMat.avg(:,r,:));
             errorToPLot = squeeze(cur_axxProjMat.sem(:,r,:));
-            AxxyMin = floor(min(cur_axxProjMat.avg(:)-cur_axxProjMat.sem(:)));
-            AxxyMax = ceil(max(cur_axxProjMat.avg(:)+cur_axxProjMat.sem(:)));
+            AxxyMin = floor(min((min(cur_axxProjMat.avg(:,r,:)-cur_axxProjMat.sem(:,r,:)))/2))*2;
+            AxxyMax = ceil(max((max(cur_axxProjMat.avg(:,r,:)+cur_axxProjMat.sem(:,r,:)))/2))*2;
+            if ( AxxyMax-AxxyMin ) > 10
+                AxxyUnit = 2;
+            else
+                AxxyUnit = 1;
+            end
             hold on
             for c=1:2
                 AxxH(r) = plot(xValsAxx,dataToPlot(:,c),'-','LineWidth',lWidth,'Color',subColors(c,:));
-                fill([(xValsAxx)';flipud((xValsAxx)')],[dataToPlot(:,c)-errorToPLot(:,c);flipud(dataToPlot(:,c)+errorToPLot(:,c))],subColors(c,:),'EdgeColor',subColors(c,:),'LineWidth',0.2);
-                alpha(0.2);
+                ErrorBars(xValsAxx',dataToPlot(:,c),errorToPLot(:,c),'color',subColors(c,:));
+                %fill([(xValsAxx)';flipud((xValsAxx)')],[dataToPlot(:,c)-errorToPLot(:,c);flipud(dataToPlot(:,c)+errorToPLot(:,c))],subColors(c,:),'EdgeColor',subColors(c,:),'LineWidth',0.2);
+                %alpha(0.2);
             end
             ylim([AxxyMin,AxxyMax]);
             xlim([0,xValsAxx(end)]);
