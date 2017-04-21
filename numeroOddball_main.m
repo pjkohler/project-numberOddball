@@ -22,6 +22,7 @@ if ~exist('codeFolder','var')
     rcaCodePath = sprintf('%s/git/rcaBase',codeFolder);
     addpath(genpath(rcaCodePath));
     addpath(genpath(sprintf('%s/git/mrC',codeFolder)));
+    addpath(genpath(sprintf('%s/git/schlegel/matlab_lib',codeFolder)));
 else
 end
 setenv('DYLD_LIBRARY_PATH','')
@@ -33,6 +34,7 @@ launchAnalysis = true;
 trialError = false;
 forceSourceData = false; % generate source data for first instance of rca?
 doExp = 1;
+axxType = 'ALL'; % NF1 or ALL
 
 %% IDENTIFY DATA LOCATION
 dataLocation = sprintf('%s/Experiment%.0d',topFolder,doExp);
@@ -104,9 +106,9 @@ else
         % create axxRCA
         fullW = [fullRCA(c).W, wComparison];
         if c==1
-            axxRCA = axxRCAmake(folderNames,fullW,curCond,c); % create struct
+            axxRCA = axxRCAmake(folderNames,fullW,curCond,c,axxType); % create struct
         else
-            axxRCA = axxRCAmake(folderNames,fullW,curCond,c,axxRCA);
+            axxRCA = axxRCAmake(folderNames,fullW,curCond,c,axxType,axxRCA);
         end
         %axxRCA(c).Projected = rcaProject(axxRCA(c).Wave,axxRCA(c).W);
         % oddball RCA, first two frequencies 1F1 and 2F1 
@@ -122,11 +124,11 @@ else
         oddW = [oddRCA(c).W, wComparison];
         carrierW = [carrierRCA(c).W, wComparison];
         if c==1
-            axxRCAodd = axxRCAmake(folderNames,oddW,curCond,c); % create struct
-            axxRCAcarrier = axxRCAmake(folderNames,carrierW,curCond,c); % create struct
+            axxRCAodd = axxRCAmake(folderNames,oddW,curCond,c,axxType); % create struct
+            axxRCAcarrier = axxRCAmake(folderNames,carrierW,curCond,c,axxType); % create struct
         else
-            axxRCAodd = axxRCAmake(folderNames,oddW,curCond,c,axxRCAodd);
-            axxRCAcarrier = axxRCAmake(folderNames,carrierW,curCond,c,axxRCAcarrier);
+            axxRCAodd = axxRCAmake(folderNames,oddW,curCond,c,axxType,axxRCAodd);
+            axxRCAcarrier = axxRCAmake(folderNames,carrierW,curCond,c,axxType,axxRCAcarrier);
         end
         close all;
     end
@@ -334,18 +336,32 @@ for f = 1:3 % frequency pairs
             subplot(yFigs,xFigs,[(xFigs-1)+(r-1)*xFigs, xFigs+(r-1)*xFigs]);
             dataToPlot = squeeze(axxProjMat(f).avg(:,r,:));
             errorToPLot = squeeze(axxProjMat(f).sem(:,r,:));
-            AxxyMin = floor(min(axxProjMat(f).avg(:)-axxProjMat(f).sem(:)));
-            AxxyMax = ceil(max(axxProjMat(f).avg(:)+axxProjMat(f).sem(:)));
-            AxxyUnit = 2;
+            AxxyMin(1) = floor((min(axxProjMat(f).avg(:)-axxProjMat(f).sem(:)))/2)*2;
+            AxxyMax(1) = ceil((max(axxProjMat(f).avg(:)+axxProjMat(f).sem(:)))/2)*2;
+            AxxyUnit(1) = 2;
+            AxxyUnit(2) = 1;
+            AxxyMax(2) =  AxxyMax(1)/2; 
+            AxxyMin(2) =  AxxyMin(1); 
+
+
             hold on
             for c=1:2
                 AxxH(r) = plot(xValsAxx,dataToPlot(:,c),'-','LineWidth',lWidth,'Color',subColors(c,:));
-                fill([(xValsAxx)';flipud((xValsAxx)')],[dataToPlot(:,c)-errorToPLot(:,c);flipud(dataToPlot(:,c)+errorToPLot(:,c))],subColors(c,:),'EdgeColor',subColors(c,:),'LineWidth',0.2);
-                alpha(0.2);
+                ErrorBars(xValsAxx',dataToPlot(:,c),errorToPLot(:,c),'color',subColors(c,:));
+                
+                %fill([(xValsAxx)';flipud((xValsAxx)')],[dataToPlot(:,c)-errorToPLot(:,c);flipud(dataToPlot(:,c)+errorToPLot(:,c))],subColors(c,:),'EdgeColor',subColors(c,:),'LineWidth',0.2);
+                %alpha(0.2);
             end
-            ylim([AxxyMin,AxxyMax]);
+            if r<3
+                ylim([AxxyMin(1),AxxyMax(1)]);
+                curYticks = AxxyMin(1):AxxyUnit(1):AxxyMax(1);
+            else
+                ylim([AxxyMin(2),AxxyMax(2)]);
+                curYticks = AxxyMin(2):AxxyUnit(2):AxxyMax(2);
+            end
+
             xlim([0,xValsAxx(end)]);
-            set(gca,gcaOpts{:},'xtick',axxTicks{f},'xticklabel',cellfun(@(x) num2str(x),num2cell(axxTicks{f}),'uni',false),'ytick',AxxyMin:AxxyUnit:AxxyMax);
+            set(gca,gcaOpts{:},'xtick',axxTicks{f},'xticklabel',cellfun(@(x) num2str(x),num2cell(axxTicks{f}),'uni',false),'ytick',curYticks);
             yLine = repmat(get(gca,'YLim'),nReps(f),1)';
             line(repmat(stimOnset,2,1),yLine,'Color','black');
             if r == 1
@@ -371,9 +387,15 @@ for f = 1:3 % frequency pairs
                 fill([(xValsAxx)';flipud((xValsAxx)')],[dataToPlot(:,c)-errorToPLot(:,c);flipud(dataToPlot(:,c)+errorToPLot(:,c))],subColors(c,:),'EdgeColor',subColors(c,:),'LineWidth',0.2);
                 alpha(0.2);
             end
-            ylim([AxxyMin,AxxyMax]);
+            if r==1
+                ylim([AxxyMin(1),AxxyMax(1)]);
+                curYticks = AxxyMin(1):AxxyUnit(1):AxxyMax(1);
+            else
+                ylim([AxxyMin(2),AxxyMax(2)]);
+                curYticks = AxxyMin(2):AxxyUnit(2):AxxyMax(2);
+            end
             xlim([0,xValsAxx(end)]);
-            set(gca,gcaOpts{:},'xtick',axxTicks{f},'xticklabel',cellfun(@(x) num2str(x),num2cell(axxTicks{f}),'uni',false),'ytick',AxxyMin:AxxyUnit:AxxyMax);
+            set(gca,gcaOpts{:},'xtick',axxTicks{f},'xticklabel',cellfun(@(x) num2str(x),num2cell(axxTicks{f}),'uni',false),'ytick',curYticks);
             yLine = repmat(get(gca,'YLim'),nReps(f),1)';
             line(repmat(stimOnset,2,1),yLine,'Color','black');
             if r == 1

@@ -1,4 +1,4 @@
-function axxRCA = axxRCAmake(folderNames,W,condsToUse,c,axxRCA)
+function axxRCA = axxRCAmake(folderNames,W,condsToUse,c,type,axxRCA)
 %Make axxRCA struct that includes the axx Wave data and the W (Ch x
 %component) matrix from fullRCA
 %INPUTS:
@@ -10,7 +10,7 @@ function axxRCA = axxRCAmake(folderNames,W,condsToUse,c,axxRCA)
 % Wave: Wave data from Axx_c00x.mat
 % W: linear transformation matrix to go from sensor space to RC-space
 
-if nargin<5
+if nargin<6
     axxRCA.Wave = {};
 end
 %axxRCA(c).W = W;
@@ -19,7 +19,7 @@ for f = 1:length(folderNames)
     %axxpathNames{f} = sprintf('%s/Exp_MATL_HCN_128_Avg',tempFolders{end});
     %axxMatFiles = subfiles(sprintf('%s/Exp_MATL_HCN_128_Avg/Axx*_trials.mat',tempFolders{end}),1);
     axxMatFiles = arrayfun(@(x) ... 
-        sprintf('%s/Exp_MATL_HCN_128_Avg/Axx_c%03d.mat',tempFolders{end},x),condsToUse,'uni',false);
+        sprintf('%s/%s_Exp_MATL_HCN_128_Avg/Axx_c%03d.mat',tempFolders{end},type,x),condsToUse,'uni',false);
     tmpStrct = {load(axxMatFiles{(1)}) load(axxMatFiles{(2)})};
     %tmpStrct = load(axxMatFiles{m});
     %readyStrct = mrC.axx(tmpStrct);
