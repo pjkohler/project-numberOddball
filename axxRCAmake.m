@@ -20,11 +20,12 @@ for f = 1:length(folderNames)
     %axxMatFiles = subfiles(sprintf('%s/Exp_MATL_HCN_128_Avg/Axx*_trials.mat',tempFolders{end}),1);
     axxMatFiles = arrayfun(@(x) ... 
         sprintf('%s/%s_Exp_MATL_HCN_128_Avg/Axx_c%03d.mat',tempFolders{end},type,x),condsToUse,'uni',false);
-    tmpStrct = {load(axxMatFiles{(1)}) load(axxMatFiles{(2)})};
-    %tmpStrct = load(axxMatFiles{m});
-    %readyStrct = mrC.axx(tmpStrct);
-    readyStrct = {mrC.axx(tmpStrct{1}),mrC.axx(tmpStrct{2})};
-    axxRCA(c).Wave(:,f) = {readyStrct{1}.Wave, readyStrct{2}.Wave};
+%     tmpStrct = {load(axxMatFiles{(1)}) load(axxMatFiles{(2)})};
+    tmpStrct = arrayfun(@(x) load(axxMatFiles{(x)}),condsToUse,'uni',false);
+%     readyStrct = {mrC.axx(tmpStrct{1}),mrC.axx(tmpStrct{2})};
+    readyStrct = cellfun(@(x) mrC.axx(x),tmpStrct,'uni',false);
+%     axxRCA(c).Wave(:,f) = {readyStrct{1}.Wave, readyStrct{2}.Wave};
+    axxRCA(c).Wave(:,f) = cellfun(@(x) x.Wave, readyStrct,'uni',false);
 end
 
 nanDims = [1,2];
