@@ -1,4 +1,4 @@
-# numberOddball
+# project-numberOddball
 
 Code for analyzing EEG data for the numberOddball project. 
 
