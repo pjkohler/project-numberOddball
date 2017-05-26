@@ -1,6 +1,8 @@
 # numberOddball
 
-Code for analyzing numerosity oddball EEG data. Developed and maintained by Frank Kanayet and Peter J. Kohler.
+Code for analyzing EEG data for the numberOddball project. 
+
+Developed and maintained by Frank Kanayet and Peter J. Kohler.
 
 Dependencies: 
 * http://github.com/svndl/mrC.git  
