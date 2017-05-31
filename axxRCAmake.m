@@ -21,7 +21,7 @@ for f = 1:length(folderNames)
     axxMatFiles = arrayfun(@(x) ... 
         sprintf('%s/%s_Exp_MATL_HCN_128_Avg/Axx_c%03d.mat',tempFolders{end},type,x),condsToUse,'uni',false);
 %     tmpStrct = {load(axxMatFiles{(1)}) load(axxMatFiles{(2)})};
-    tmpStrct = arrayfun(@(x) load(axxMatFiles{(x)}),condsToUse,'uni',false);
+    tmpStrct = cellfun(@(x) load(x),axxMatFiles,'uni',false);
 %     readyStrct = {mrC.axx(tmpStrct{1}),mrC.axx(tmpStrct{2})};
     readyStrct = cellfun(@(x) mrC.axx(x),tmpStrct,'uni',false);
 %     axxRCA(c).Wave(:,f) = {readyStrct{1}.Wave, readyStrct{2}.Wave};
