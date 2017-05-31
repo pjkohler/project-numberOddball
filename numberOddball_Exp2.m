@@ -133,7 +133,7 @@ else
         end
         close all;
     end
-    save(saveFileName,'fullRCA','oddRCA','carrierRCA','axxRCA','-append')
+    save(saveFileName,'fullRCA','oddRCA','carrierRCA','axxRCA*','-append')
     warning('on','all')
 end
 %% rca replaces NaNs with zeroes, correct this
@@ -181,8 +181,8 @@ for d = 1:3 % compute values for both full RCA and merge the split oddball/carri
             curAxxRCA = axxRCAcarrier(c);
         end
         [tempDataStrct,tempReal,tempImag] = aggregateData(curRCA.data,curRCA.settings,keepConditions,errorType,trialError);
-        realSubjs(freqIdx,1:5,:,:,c,rcaIdx) = permute(tempReal,[3,4,5,2,1]);
-        imagSubjs(freqIdx,1:5,:,:,c,rcaIdx) = permute(tempImag,[3,4,5,2,1]);
+        realSubjs(freqIdx,1:5,:,:,c,rcaIdx) = permute(tempReal,[2,3,5,4,1]);
+        imagSubjs(freqIdx,1:5,:,:,c,rcaIdx) = permute(tempImag,[2,3,5,4,1]);
         ampVals(freqIdx,1:5,:,c,rcaIdx) = squeeze( tempDataStrct.ampBins );
         tVs0Stat(freqIdx,1:5,:,c,rcaIdx) = tempDataStrct.tSqrdVal;
         tVs0Pval(freqIdx,1:5,:,c,rcaIdx) = tempDataStrct.tSqrdP;
@@ -196,8 +196,8 @@ for d = 1:3 % compute values for both full RCA and merge the split oddball/carri
         noiseVals(freqIdx,1:5,:,c,rcaIdx) = squeeze(noiseTmp);
         % COMPARISON
         [tempDataStrct,tempReal,tempImag] = aggregateData(curRCA.comparisonData,curRCA.settings,keepConditions,errorType,trialError);
-        realSubjs(freqIdx,6,:,:,c,rcaIdx) = permute(tempReal,[3,4,5,2,1]);
-        imagSubjs(freqIdx,6,:,:,c,rcaIdx) = permute(tempImag,[3,4,5,2,1]);
+        realSubjs(freqIdx,6,:,:,c,rcaIdx) = permute(tempReal,[2,3,5,4,1]);
+        imagSubjs(freqIdx,6,:,:,c,rcaIdx) = permute(tempImag,[2,3,5,4,1]);
         ampVals(freqIdx,6,:,c,rcaIdx) = squeeze( tempDataStrct.ampBins );
         realVals(freqIdx,6,:,c,rcaIdx) = squeeze( tempDataStrct.realBins );
         imagVals(freqIdx,6,:,c,rcaIdx) = squeeze( tempDataStrct.imagBins );
