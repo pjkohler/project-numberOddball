@@ -256,6 +256,10 @@ function numberOddball_Exp1(varargin)
                         end
                         xyData(:,:,c) = [tempReal,tempImag];
                     end
+                    % if r == 1 && fPair == 3 && f == 5 && rcType == 1
+                    %     disp('debug');
+                    % else
+                    % end 
                     results = tSquaredFourierCoefs(xyData);
                     tSig(f,r,fPair,rcType) = results.H;
                     tPval(f,r,fPair,rcType) = results.pVal;
