@@ -9,7 +9,7 @@ function numberOddball_Exp2(varargin)
     %                       [analyze all available subject folders]
     %
     %   launchRCA       - if true RCA is run, if false RCA data is loaded
-    %                   	[true]/false
+    %                   	true/[false]
     %
     %   trialError      - compute trial-wise error true/[false]
     %
@@ -17,7 +17,7 @@ function numberOddball_Exp2(varargin)
     %                       true/[false]
     %
     %   forceSourceData - force reading in of raw data when initial running
-    %                       RCA [true]/false
+    %                       RCA true/[false]
     %
     %   axxType         - string indicating the type of axx data to plot
     %                      'ALL'/'NF1'
@@ -41,7 +41,7 @@ function numberOddball_Exp2(varargin)
             'launchRCA', false, ...
             'trialError', false, ...
             'plotSplit', false, ...
-            'forceSourceData', true, ...
+            'forceSourceData', false, ...
             'axxType', 'ALL' ...
             );
 
@@ -462,11 +462,11 @@ function numberOddball_Exp2(varargin)
                 for c=1:3
                     curOrder = newOrders(f,:);
                     if plotSNR
-                        curRange = snrVals(:,:,curOrder,1,opt.plotSplit+1);
+                        curRange = snrVals(curIdx,:,curOrder,1,opt.plotSplit+1);
                         %valSet = snrVals(curIdx,r,c,f,opt.plotSplit+1);
                         ampH(c)=plot(1:numFreqs,snrVals(curIdx,r,curOrder(c),1,opt.plotSplit+1),'-','LineWidth',lWidth,'Color',subColors(c,:));
                     else
-                        curRange = ampVals(:,:,curOrder(c),1,opt.plotSplit+1);
+                        curRange = ampVals(curIdx,:,curOrder,1,opt.plotSplit+1) + errUB(curIdx,:,curOrder,1,opt.plotSplit+1);
                         %valSet = ampVals(:,r,c,f,opt.plotSplit+1);
                         ampH(c)=plot(1:numFreqs,ampVals(curIdx,r,curOrder(c),1,opt.plotSplit+1),'-','LineWidth',lWidth,'Color',subColors(c,:));
                         %plot(1:2,noiseVals(curIdx,r,c,f,opt.plotSplit+1),'sq','Color',subColors(c,:),'MarkerSize',5);
