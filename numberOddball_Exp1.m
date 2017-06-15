@@ -21,6 +21,8 @@ function numberOddball_Exp1(varargin)
     %
     %   axxType         - string indicating the type of axx data to plot
     %                      'ALL'/'NF1'
+    %   plotSNR         - if true use SNR instead of vector based stats
+    %                     true/[false]
     
     %% ADD PATHS
     close all;
@@ -42,7 +44,8 @@ function numberOddball_Exp1(varargin)
             'trialError', false, ...
             'plotSplit', false, ...
             'forceSourceData', true, ...
-            'axxType', 'ALL' ...
+            'axxType', 'ALL', ...
+            'plotSNR', false ...
             );
 
     %% VARIABLES THAT CAN BE CHANGED
@@ -271,7 +274,7 @@ function numberOddball_Exp1(varargin)
 
     %% NEW PLOTTING
     close all
-    plotSNR = false;
+%     plotSNR = false;
     xVals = fullRCA(1).settings.freqsToUse; % frequencies are x-values
     axxTicks = {[0 250 500 750 1000],[0 250 500 750 1000 1250],[0 500 1000 1500 2000]};
     bgColors = [1,1,1; 0,0,0];
@@ -451,8 +454,8 @@ function numberOddball_Exp1(varargin)
 
                 hold on
                 for c=1:2
-                    if plotSNR
-                        curRange = snrVals(:,:,:,f,opt.plotSplit+1);
+                    if opt.plotSNR
+                        curRange = snrVals(curIdx,r,:,f,opt.plotSplit+1);
                         %valSet = snrVals(curIdx,r,c,f,opt.plotSplit+1);
                         ampH(c)=plot(1:numFreqs,snrVals(curIdx,r,c,f,opt.plotSplit+1),'-','LineWidth',lWidth,'Color',subColors(c,:));
                     else
@@ -491,7 +494,7 @@ function numberOddball_Exp1(varargin)
                 ylim([0,yMax]);
                 xlim([.5,numFreqs+0.5]);
                 if r== 3  && t == 1
-                    if plotSNR
+                    if opt.plotSNR
                         ylabel('SNR')
                     else
                         ylabel('Amplitude (\muVolts)')
@@ -546,7 +549,7 @@ function numberOddball_Exp1(varargin)
         figPos(4) = figHeight;
         figPos(3) = figWidth;
         set(gcf,'pos',figPos);
-        if plotSNR        
+        if opt.plotSNR        
             export_fig(sprintf('%s/%s_rc%d_%s_snr.pdf',figureLocation,dataType,f,rcaType),'-pdf','-transparent',gcf);
         else
             export_fig(sprintf('%s/%s_rc%d_%s.pdf',figureLocation,dataType,f,rcaType),'-pdf','-transparent',gcf);
