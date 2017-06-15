@@ -21,6 +21,10 @@ function numberOddball_Exp2(varargin)
     %
     %   axxType         - string indicating the type of axx data to plot
     %                      'ALL'/'NF1'
+    %
+    %   trainData       - integer indicating whether to train RCA on all data 
+    %                     or only on conditions with carrier = 6 or carrier = 8
+    %                     [0](all)/1(6)/2(8)
     
     %% ADD PATHS
     close all;
@@ -42,7 +46,8 @@ function numberOddball_Exp2(varargin)
             'trialError', false, ...
             'plotSplit', false, ...
             'forceSourceData', false, ...
-            'axxType', 'ALL' ...
+            'axxType', 'ALL', ...
+            'trainData', 0 ...
             );
 
     %% VARIABLES THAT CAN BE CHANGED
@@ -72,6 +77,12 @@ function numberOddball_Exp2(varargin)
     binsToUse=0; % use average bin, the zeroeth one
     freqsToUse= 1:8; % indices of frequencies to include in analysis (the values must be present in the frequency column of all DFT/RLS exports)
     condsToUse = 1:6;
+    trainData = opt.trainData;
+    if trainData == 1
+        condsToUse = 4:6;
+    elseif trainData == 2
+        condsToUse = 1:3;
+    end
     trialsToUse = []; % subset of trials to use for analysis (if set to false or empty, all trials will be used)
     nReg=7; % RCA regularization constant (7-9 are typical values, but see within-trial eigenvalue plot in rca output)
     nComp=5; % number of RCs that you want to look at (3-5 are good values, but see across-trial eigenvalue plot in rca output)
@@ -98,7 +109,7 @@ function numberOddball_Exp2(varargin)
         else
             save(saveFileName,'*ToUse','-append') % otherwise append
         end
-        for c = 1:(length(condsToUse)/6)
+        for c = 1:(length(condsToUse)/length(condsToUse)) % This is not doing anything but stays in case we want to loop and separate data differently
             curCond = condsToUse;
             % full RCA, use all harmonics 1F1, 2F1, 1F2 and 2F2
             if c==1
@@ -222,7 +233,7 @@ function numberOddball_Exp2(varargin)
             nConds = size(curAxxRCA.Projected,1);
             %projmatTest = reshape(cell2mat(cellfun(@ (x,y) cat(3,x,y), axxRCA(3).Projected(1,:),axxRCA(3).Projected(2,:),'Uni',false)),840,6,15,2)
     %         tmp_axxProjMat(c).ProjMat = reshape(cell2mat(cellfun(@(x,y) cat(3,x,y),curAxxRCA.Projected(1,:),curAxxRCA.Projected(2,:),'Uni',false)),nTps,nRCA,nSubjs,2);
-            tmp_axxProjMat(c).ProjMat = reshape(cell2mat(curAxxRCA.Projected),nTps,length(condsToUse),nRCA,nSubjs);
+            tmp_axxProjMat(c).ProjMat = reshape(cell2mat(curAxxRCA.Projected),nTps,nCond,nRCA,nSubjs);
             tmp_axxProjMat(c).avg = nanmean(tmp_axxProjMat(c).ProjMat,4);
             tmp_axxProjMat(c).std = nanstd(tmp_axxProjMat(c).ProjMat,0,4);
             tmp_axxProjMat(c).sem = tmp_axxProjMat(c).std./sqrt(nSubjs);
@@ -241,7 +252,7 @@ function numberOddball_Exp2(varargin)
         for r = 1:6
             for fPair = 1 %was 1:3 before
                 for rcType = 1:2
-                    for c = 1:6 %was 2 before
+                    for c = 1:nCond %was 2 before
                         tempReal = squeeze(realSubjs(f,r,c,:,fPair,rcType));
                         tempImag = squeeze(imagSubjs(f,r,c,:,fPair,rcType));
                         if opt.trialError
@@ -255,7 +266,13 @@ function numberOddball_Exp2(varargin)
                     % ttests and how they are stored
                     contrastOrder = [[4 5];[6 5];[6 4];[3 2];[1 2];[1 3]];
                     storeOrder = [[1 1];[2 1];[3 1];[1 2];[2 2];[3 2]];
-                    for t=1:6 % number of tTests
+                    if trainData == 1
+                        contrastOrder = [[1 2];[3 2];[3 1]];
+                    elseif trainData == 2
+                        contrastOrder = [[3 2];[1 2];[1 3]];
+                    else
+                    end
+                    for t=1:nCond % number of tTests
                         results = tSquaredFourierCoefs(xyData(:,:,contrastOrder(t,:)));
                         tSig(f,r,fPair,rcType,storeOrder(t,1),storeOrder(t,2)) = results.H;
                         tPval(f,r,fPair,rcType,storeOrder(t,1),storeOrder(t,2)) = results.pVal;
@@ -278,6 +295,16 @@ function numberOddball_Exp2(varargin)
     %Reorder to make plotting easier
     carriers = [6, 8];
     newOrders = [[5 4 6]; [2 3 1]]; %6v6,6v5,6v9; 8v8,8v9,8v5
+    if trainData == 1
+        newOrders = [[2 1 3]];
+        carriers = [6];
+        trainStim = 'train6';
+    elseif trainData == 2
+        newOrders = [[2 3 1]];
+        carriers = [8];
+        trainStim = 'train8';
+    else
+    end
     % axxProjMat.avg = axxProjMat(:,newOrder,:);
     % axxProjMat.std = axxProjMat(:,newOrder,:);
     % axxProjMat.sem = axxProjMat(:,newOrder,:);
@@ -285,7 +312,7 @@ function numberOddball_Exp2(varargin)
     axxTicks = {[0 500 1000 1500 2000], [0 500 1000 1500 2000]};
     bgColors = [1,1,1; 0,0,0];
     subColors =  repmat(distinguishable_colors(4,bgColors),2,1);
-    subColors = subColors(condsToUse,:);
+    subColors = subColors(1:6,:); %Change this from condsToUse for consistency in colors between plots
     lWidth = 1;
     fSize = 8;
     gcaOpts = {'tickdir','out','ticklength',[0.0200,0.0200],'box','off','fontsize',fSize,'fontname','Arial','linewidth',lWidth};
@@ -302,7 +329,7 @@ function numberOddball_Exp2(varargin)
 
     binVals = fullRCA(1).settings.freqLabels';
     clear egiH;
-    for f = 1:2 % carriers (i.e. 6 & 8)
+    for f = 1:length(carriers) % carriers (i.e. 6 & 8)
         % Axx xVals
         nTps = size(axxProjMat.ProjMat,tPtsIdx);
         carrierFreq = [3.0 3.0];
@@ -368,10 +395,10 @@ function numberOddball_Exp2(varargin)
                 hold on
                 for c=1:3
                     AxxH(r) = plot(xValsAxx,dataToPlot(:,c),'-','LineWidth',lWidth,'Color',subColors(c,:));
-                    %ErrorBars(xValsAxx',dataToPlot(:,c),errorToPLot(:,c),'color',subColors(c,:));
+                    ErrorBars(xValsAxx',dataToPlot(:,c),errorToPLot(:,c),'color',subColors(c,:));
 
-                    fill([(xValsAxx)';flipud((xValsAxx)')],[dataToPlot(:,c)-errorToPLot(:,c);flipud(dataToPlot(:,c)+errorToPLot(:,c))],subColors(c,:),'EdgeColor',subColors(c,:),'LineWidth',0.2);
-                    alpha(0.2);
+%                     fill([(xValsAxx)';flipud((xValsAxx)')],[dataToPlot(:,c)-errorToPLot(:,c);flipud(dataToPlot(:,c)+errorToPLot(:,c))],subColors(c,:),'EdgeColor',subColors(c,:),'LineWidth',0.2);
+%                     alpha(0.2);
                 end
                 ylim([AxxyMin,AxxyMax]);
                 xlim([0,xValsAxx(end)]);
@@ -466,7 +493,7 @@ function numberOddball_Exp2(varargin)
                         %valSet = snrVals(curIdx,r,c,f,opt.plotSplit+1);
                         ampH(c)=plot(1:numFreqs,snrVals(curIdx,r,curOrder(c),1,opt.plotSplit+1),'-','LineWidth',lWidth,'Color',subColors(c,:));
                     else
-                        curRange = ampVals(curIdx,:,curOrder,1,opt.plotSplit+1) + errUB(curIdx,:,curOrder,1,opt.plotSplit+1);
+                        curRange = ampVals(curIdx,r,curOrder,1,opt.plotSplit+1) + errUB(curIdx,r,curOrder,1,opt.plotSplit+1);
                         %valSet = ampVals(:,r,c,f,opt.plotSplit+1);
                         ampH(c)=plot(1:numFreqs,ampVals(curIdx,r,curOrder(c),1,opt.plotSplit+1),'-','LineWidth',lWidth,'Color',subColors(c,:));
                         %plot(1:2,noiseVals(curIdx,r,c,f,opt.plotSplit+1),'sq','Color',subColors(c,:),'MarkerSize',5);
@@ -477,29 +504,43 @@ function numberOddball_Exp2(varargin)
                     if any(zeroSig)
                         if c==1
                             arrayfun(@(x) ...
-                                text(x-.15,yMax*.95,'*','fontsize',20,'HorizontalAlignment','center','color',subColors(c,:)),...
+                                text(x-.3,yMax*.95,'*','fontsize',20,'HorizontalAlignment','center','color',subColors(c,:)),...
                                 find(zeroSig==1),'uni',false);
-                        else
+                        elseif c==2
                             arrayfun(@(x) ...
-                                text(x+.15,yMax*.95,'*','fontsize',20,'HorizontalAlignment','center','color',subColors(c,:)),...
+                                text(x,yMax*.95,'*','fontsize',20,'HorizontalAlignment','center','color',subColors(c,:)),...
+                                find(zeroSig==1),'uni',false);
+                        elseif c ==3
+                            arrayfun(@(x) ...
+                                text(x+.3,yMax*.95,'*','fontsize',20,'HorizontalAlignment','center','color',subColors(c,:)),...
                                 find(zeroSig==1),'uni',false);
                         end
                     else
                     end
+                    curSig = tPval(curIdx,r,1,opt.plotSplit+1,:,f)<0.05;
+                    %curSig = curSig+(tPval(curIdx,r,1,opt.plotSplit+1,:,f)<0.005);
+                    curSig = squeeze(curSig);
+%                     if any(any(curSig))
+%                         [freq,test] = find(curSig >0);
+%                         arrayfun(@(x) text(x,yMax*.95,'*','fontsize',20,'HorizontalAlignment','center'), freq,'uni',false);
+%                         [freq,test] = find(curSig==2);
+%                         arrayfun(@(x) text(x,yMax*.85,'*','fontsize',20,'HorizontalAlignment','center'), freq,'uni',false);
+%                     else
+%                     end
+                    if any(curSig(:,c))
+                        if c==1
+                            freq = find(curSig(:,c) >0);
+                            arrayfun(@(x) text(x-.3,yMax*.85,'1','fontsize',10,'HorizontalAlignment','center'), freq,'uni',false);
+                        elseif c==2
+                            freq = find(curSig(:,c) >0);
+                            arrayfun(@(x) text(x,yMax*.85,'3','fontsize',10,'HorizontalAlignment','center'), freq,'uni',false);
+                        elseif c==3
+                            freq = find(curSig(:,c) >0);
+                            arrayfun(@(x) text(x+.3,yMax*.85,'N','fontsize',10,'HorizontalAlignment','center'), freq,'uni',false);
+                        end
+                    end
                 end
-
-                curSig = tPval(curIdx,r,1,opt.plotSplit+1,:,f)<0.05;
-                curSig = curSig+(tPval(curIdx,r,1,opt.plotSplit+1,:,f)<0.005);
-                curSig = squeeze(curSig);
-                if any(any(curSig))
-                    [freq,test] = find(curSig >0);
-                    arrayfun(@(x) text(x,yMax*.95,'*','fontsize',20,'HorizontalAlignment','center'), freq,'uni',false);
-                    [freq,test] = find(curSig==2);
-                    arrayfun(@(x) text(x,yMax*.85,'*','fontsize',20,'HorizontalAlignment','center'), freq,'uni',false);
-                else
-                end
-
-
+                
                 yUnit = 1;
                 ylim([0,yMax]);
                 xlim([.5,numFreqs+0.5]);
@@ -562,6 +603,65 @@ function numberOddball_Exp2(varargin)
         if plotSNR        
             export_fig(sprintf('%s/%s_car%d_%s_snr.pdf',figureLocation,dataType,carriers(f),rcaType),'-pdf','-transparent',gcf);
         else
-            export_fig(sprintf('%s/%s_car%d_%s.pdf',figureLocation,dataType,carriers(f),rcaType),'-pdf','-transparent',gcf);
+            if trainData == 0
+                export_fig(sprintf('%s/%s_car%d_%s.pdf',figureLocation,dataType,carriers(f),rcaType),'-pdf','-transparent',gcf);
+            elseif trainData == 1
+                export_fig(sprintf('%s/%s_car%d_%s_%s.pdf',figureLocation,dataType,carriers(f),rcaType,trainStim),'-pdf','-transparent',gcf);
+            elseif trainData == 2
+                export_fig(sprintf('%s/%s_car%d_%s_%s.pdf',figureLocation,dataType,carriers(f),rcaType,trainStim),'-pdf','-transparent',gcf);
+            else
+            end
         end
     end
+%% Test plot just one condition
+% close all
+% freqsToUse= 1:8;
+% t = 1; % 1 = odd; 2 = carrier 
+% numFreqs = max(freqsToUse)/2;
+% curIdx = (freqsToUse(1:end/2))+(t-1)*numFreqs;
+% f = 1; % carrier either 1 = 6 or 2 = 8
+% rc = 2; %rca component number
+% newOrders = [[5 4 6]; [2 3 1]]; %6v6,6v5,6v9; 8v8,8v9,8v5
+% curOrder = newOrders(f,:);
+% hold on
+% for c = 1:3
+%     curOrder = newOrders(f,:);
+%     curRange = ampVals(curIdx,rc,curOrder,1,1) + errUB(curIdx,rc,curOrder,1,1);
+%     ampH(c)=plot(1:numFreqs,ampVals(curIdx,rc,curOrder(c),1,opt.plotSplit+1),'-','LineWidth',lWidth,'Color',subColors(c,:));
+%     errorbar(1:numFreqs,ampVals(curIdx,rc,curOrder(c),1,1),errLB(curIdx,rc,curOrder(c),1,1),errUB(curIdx,rc,curOrder(c),1,1),'Color',subColors(c,:),'LineWidth',lWidth);
+%     yMax = ceil(max(curRange(:)));
+%     zeroSig = tVs0Pval(curIdx,rc,curOrder(c),1,1)<0.05;
+%     if any(zeroSig)
+%         if c==1
+%             arrayfun(@(x) ...
+%                 text(x-.3,yMax*.95,'*','fontsize',20,'HorizontalAlignment','center','color',subColors(c,:)),...
+%                 find(zeroSig==1),'uni',false);
+%         elseif c==2
+%             arrayfun(@(x) ...
+%                 text(x,yMax*.95,'*','fontsize',20,'HorizontalAlignment','center','color',subColors(c,:)),...
+%                 find(zeroSig==1),'uni',false);
+%         elseif c ==3
+%             arrayfun(@(x) ...
+%                 text(x+.3,yMax*.95,'*','fontsize',20,'HorizontalAlignment','center','color',subColors(c,:)),...
+%                 find(zeroSig==1),'uni',false);
+%         end
+%     else
+%     end
+%     curSig = tPval(curIdx,rc,1,1,:,f)<0.05;
+%     %curSig = curSig+(tPval(curIdx,r,1,opt.plotSplit+1,:,f)<0.005);
+%     curSig = squeeze(curSig);
+%     if any(curSig(:,c))
+%         if c==1
+%             freq = find(curSig(:,c) >0);
+%             arrayfun(@(x) text(x-.3,yMax*.85,'A','fontsize',20,'HorizontalAlignment','center'), freq,'uni',false);
+%         elseif c==2
+%             freq = find(curSig(:,c) >0);
+%             arrayfun(@(x) text(x,yMax*.85,'B','fontsize',20,'HorizontalAlignment','center'), freq,'uni',false);
+%         elseif c==3
+%             freq = find(curSig(:,c) >0);
+%             arrayfun(@(x) text(x+.3,yMax*.85,'C','fontsize',20,'HorizontalAlignment','center'), freq,'uni',false);
+%         end
+%     else
+%     end
+% end
+% hold off
