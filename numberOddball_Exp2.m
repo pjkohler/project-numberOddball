@@ -261,6 +261,7 @@ function numberOddball_Exp2(varargin)
                         else
                         end
                         xyData(:,:,c) = [tempReal,tempImag];
+                        ampData(:,c) = sqrt(tempReal.^2+tempImag.^2);
                     end
                     % think how to compute the appropriate pairs to do the
                     % ttests and how they are stored
@@ -277,6 +278,13 @@ function numberOddball_Exp2(varargin)
                         tSig(f,r,fPair,rcType,storeOrder(t,1),storeOrder(t,2)) = results.H;
                         tPval(f,r,fPair,rcType,storeOrder(t,1),storeOrder(t,2)) = results.pVal;
                         tStat(f,r,fPair,rcType,storeOrder(t,1),storeOrder(t,2)) = results.tSqrd;
+                        % amplitude paired ttest
+                        [h,p,ci,ampResults] = ttest(ampData(:,contrastOrder(t,1)),ampData(:,contrastOrder(t,2)));
+                        AmptSig(f,r,fPair,rcType,storeOrder(t,1),storeOrder(t,2)) = h;
+                        AmptPval(f,r,fPair,rcType,storeOrder(t,1),storeOrder(t,2)) = p;
+                        AmptStat(f,r,fPair,rcType,storeOrder(t,1),storeOrder(t,2)) = ampResults.tstat;
+                        
+
                     end
 
                 end
@@ -518,6 +526,7 @@ function numberOddball_Exp2(varargin)
                     else
                     end
                     curSig = tPval(curIdx,r,1,opt.plotSplit+1,:,f)<0.05;
+%                     curSig = AmptPval(curIdx,r,1,opt.plotSplit+1,:,f)<0.05;
                     %curSig = curSig+(tPval(curIdx,r,1,opt.plotSplit+1,:,f)<0.005);
                     curSig = squeeze(curSig);
 %                     if any(any(curSig))
