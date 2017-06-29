@@ -55,7 +55,7 @@ function numberOddball_Exp2(varargin)
     doExp = 2;
 
     %% IDENTIFY DATA LOCATION
-    dataLocation = sprintf('%s/Experiment%.0d',topFolder,doExp);
+    dataLocation = sprintf('%s/Experiment%.0d',topFolder,doExp);    
     figureLocation = sprintf('%s/Experiment%.0d/figures',topFolder,doExp);
     if ~exist(figureLocation,'dir')
         mkdir(figureLocation);
@@ -172,6 +172,28 @@ function numberOddball_Exp2(varargin)
             end
         end
     end
+    
+    %% NOW SPLIT BASED ON BEHAVIOR
+    % load trial idx, and convert it to a more manageable variable
+    load(sprintf('%s/trialIdx.mat',dataLocation));
+    if ~iscell(TrialIdx)
+        TrialIdx = permute(TrialIdx,[1,3,2]);
+        tSize = size(TrialIdx);
+        trialIdx = cell(size(fullRCA.data));
+        if any(size(trialIdx) ~= tSize(2:end));
+            error('mismatch between index and data');
+        else
+        end
+        for q = 1 : prod(tSize(2:end))
+            trialIdx{q} = TrialIdx(:,q);
+        end
+        clear TrialIdx;
+    else
+    end
+    
+    [fullRCA,fullRCA_incorrect] = splitRCA(fullRCA, trialIdx);
+    [oddRCA,oddRCA_incorrect] = splitRCA(oddRCA, trialIdx);
+    [carrierRCA,carrierRCA_incorrect] = splitRCA(carrierRCA, trialIdx);
 
     %% COMPUTE VALUES FOR PLOTTING
     % AE RCA
@@ -674,3 +696,29 @@ function numberOddball_Exp2(varargin)
 %     end
 % end
 % hold off
+end
+
+function [ trueStruct, falseStruct ] = splitRCA(rcaStruct, splitIdx)
+    structVars = {'data','noiseData','comparisonData','comparisonNoiseData'};
+    noiseVars = {'lowerSideBand','higherSideBand'};
+    trueStruct = rcaStruct; falseStruct = rcaStruct;
+    for z=1:length(structVars)
+        if strfind(lower(structVars{z}),'noise')
+            for n = 1:length(noiseVars)
+                for f=1:length(rcaStruct)
+                    trueStruct(f).(structVars{z}).(noiseVars{n}) = ...
+                        cellfun(@(x,y) x(:,:,y), rcaStruct(f).(structVars{z}).(noiseVars{n}), splitIdx,'uni',false);
+                    falseStruct(f).(structVars{z}).(noiseVars{n}) = ...
+                        cellfun(@(x,y) x(:,:,~y), rcaStruct(f).(structVars{z}).(noiseVars{n}), splitIdx,'uni',false);
+                end
+            end
+        else
+            for f=1:length(rcaStruct)
+                trueStruct(f).(structVars{z}) = ...
+                    cellfun(@(x,y) x(:,:,y), rcaStruct(f).(structVars{z}), splitIdx,'uni',false);
+                falseStruct(f).(structVars{z}) = ...
+                    cellfun(@(x,y) x(:,:,~y), rcaStruct(f).(structVars{z}), splitIdx,'uni',false);
+            end
+        end
+    end
+end
