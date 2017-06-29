@@ -33,6 +33,7 @@ for s = 1:length(folderNames)
            corrResp = 1;
        end
        curIdx = respData(:,1,s) == conditions(c);
+       TrialIdx(:,s,c) = respData(curIdx,2,s) == corrResp;
        respData(~misIdx(:,s) & curIdx,4,s) = respData(~misIdx(:,s) & curIdx,2,s) == corrResp;
        percMis(c,s) = length(find(misIdx(curIdx,s)))./length(find(curIdx));
        aveAcc(c,s) = (sum(respData(~misIdx(:,s) & curIdx,2,s) == corrResp)+0.5)./(length(respData(~misIdx(:,s) & curIdx,2,s) == corrResp)+1);
@@ -87,7 +88,6 @@ save(filename,'accurateS','inaccurateS');
 
 % Identify correct and incorrect trials by subject to indes RCA analysis
 % only with correct trials)
-TrialIdx = respData(:,[1 4],:);
 filename = sprintf('%s/TrialIdx.mat',dataLocation);
 save(filename,'TrialIdx');
 
