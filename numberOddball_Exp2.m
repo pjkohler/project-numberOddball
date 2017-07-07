@@ -25,6 +25,13 @@ function numberOddball_Exp2(varargin)
     %   trainData       - integer indicating whether to train RCA on all data 
     %                     or only on conditions with carrier = 6 or carrier = 8
     %                     [0](all)/1(6)/2(8)
+    %
+    %   ampTest         - integer indicating how to test amplitudes
+    %                     between conditions: 
+    %                     [0](vector)/1(amplitude only)/2(sSNR)
+    %
+    %   behSplit        - only use correct trials
+    %                     true/[false]
     
     %% ADD PATHS
     close all;
@@ -47,7 +54,9 @@ function numberOddball_Exp2(varargin)
             'plotSplit', false, ...
             'forceSourceData', false, ...
             'axxType', 'ALL', ...
-            'trainData', 0 ...
+            'trainData', 0, ...
+            'ampTest', 0, ...
+            'behSplit', false ...
             );
 
     %% VARIABLES THAT CAN BE CHANGED
@@ -174,26 +183,29 @@ function numberOddball_Exp2(varargin)
     end
     
     %% NOW SPLIT BASED ON BEHAVIOR
-    % load trial idx, and convert it to a more manageable variable
-    load(sprintf('%s/trialIdx.mat',dataLocation));
-    if ~iscell(TrialIdx)
-        TrialIdx = permute(TrialIdx,[1,3,2]);
-        tSize = size(TrialIdx);
-        trialIdx = cell(size(fullRCA.data));
-        if any(size(trialIdx) ~= tSize(2:end));
-            error('mismatch between index and data');
+    if opt.behSplit
+        
+        % load trial idx, and convert it to a more manageable variable
+        load(sprintf('%s/trialIdx.mat',dataLocation));
+        if ~iscell(TrialIdx)
+            TrialIdx = permute(TrialIdx,[1,3,2]);
+            tSize = size(TrialIdx);
+            trialIdx = cell(size(fullRCA.data));
+            if any(size(trialIdx) ~= tSize(2:end));
+                error('mismatch between index and data');
+            else
+            end
+            for q = 1 : prod(tSize(2:end))
+                trialIdx{q} = TrialIdx(:,q);
+            end
+            clear TrialIdx;
         else
         end
-        for q = 1 : prod(tSize(2:end))
-            trialIdx{q} = TrialIdx(:,q);
-        end
-        clear TrialIdx;
-    else
-    end
     
-    [fullRCA,fullRCA_incorrect] = splitRCA(fullRCA, trialIdx);
-    [oddRCA,oddRCA_incorrect] = splitRCA(oddRCA, trialIdx);
-    [carrierRCA,carrierRCA_incorrect] = splitRCA(carrierRCA, trialIdx);
+        [fullRCA,fullRCA_incorrect] = splitRCA(fullRCA, trialIdx);
+        [oddRCA,oddRCA_incorrect] = splitRCA(oddRCA, trialIdx);
+        [carrierRCA,carrierRCA_incorrect] = splitRCA(carrierRCA, trialIdx);
+    end
 
     %% COMPUTE VALUES FOR PLOTTING
     % AE RCA
@@ -221,6 +233,7 @@ function numberOddball_Exp2(varargin)
             realSubjs(freqIdx,1:5,:,:,c,rcaIdx) = permute(tempReal,[2,3,5,4,1]);
             imagSubjs(freqIdx,1:5,:,:,c,rcaIdx) = permute(tempImag,[2,3,5,4,1]);
             ampVals(freqIdx,1:5,:,c,rcaIdx) = squeeze( tempDataStrct.ampBins );
+            zSNRVals(freqIdx,1:5,:,:,c,rcaIdx) = permute(squeeze(tempDataStrct.zSNR.subj),[1,2,4,3]);
             tVs0Stat(freqIdx,1:5,:,c,rcaIdx) = tempDataStrct.tSqrdVal;
             tVs0Pval(freqIdx,1:5,:,c,rcaIdx) = tempDataStrct.tSqrdP;
             tVs0Sig(freqIdx,1:5,:,c,rcaIdx) = tempDataStrct.tSqrdSig;
@@ -231,11 +244,13 @@ function numberOddball_Exp2(varargin)
             [snrTmp,noiseTmp] = computeSnr(tempDataStrct,tempNoiseStrct1,tempNoiseStrct2,false);
             snrVals(freqIdx,1:5,:,c,rcaIdx) = squeeze(snrTmp);
             noiseVals(freqIdx,1:5,:,c,rcaIdx) = squeeze(noiseTmp);
+            
             % COMPARISON
             [tempDataStrct,tempReal,tempImag] = aggregateData(curRCA.comparisonData,curRCA.settings,keepConditions,errorType,opt.trialError);
             realSubjs(freqIdx,6,:,:,c,rcaIdx) = permute(tempReal,[2,3,5,4,1]);
             imagSubjs(freqIdx,6,:,:,c,rcaIdx) = permute(tempImag,[2,3,5,4,1]);
             ampVals(freqIdx,6,:,c,rcaIdx) = squeeze( tempDataStrct.ampBins );
+            zSNRVals(freqIdx,6,:,:,c,rcaIdx) = permute(squeeze(tempDataStrct.zSNR.subj),[1,3,2]);
             realVals(freqIdx,6,:,c,rcaIdx) = squeeze( tempDataStrct.realBins );
             imagVals(freqIdx,6,:,c,rcaIdx) = squeeze( tempDataStrct.imagBins );
             errLB(freqIdx,6,:,c,rcaIdx) = squeeze( tempDataStrct.ampBins-tempDataStrct.ampErrBins(:,:,:,:,1) );
@@ -284,6 +299,7 @@ function numberOddball_Exp2(varargin)
                         end
                         xyData(:,:,c) = [tempReal,tempImag];
                         ampData(:,c) = sqrt(tempReal.^2+tempImag.^2);
+                        zSNRData(:,c) = squeeze(zSNRVals(f,r,c,:,fPair,rcType));
                     end
                     % think how to compute the appropriate pairs to do the
                     % ttests and how they are stored
@@ -305,8 +321,11 @@ function numberOddball_Exp2(varargin)
                         AmptSig(f,r,fPair,rcType,storeOrder(t,1),storeOrder(t,2)) = h;
                         AmptPval(f,r,fPair,rcType,storeOrder(t,1),storeOrder(t,2)) = p;
                         AmptStat(f,r,fPair,rcType,storeOrder(t,1),storeOrder(t,2)) = ampResults.tstat;
-                        
-
+                        %zSNR paired ttest
+                        [h,p,ci,zSNRResults] = ttest(zSNRData(:,contrastOrder(t,1)),zSNRData(:,contrastOrder(t,2)));
+                        zSNRtSig(f,r,fPair,rcType,storeOrder(t,1),storeOrder(t,2)) = h;
+                        zSNRtPval(f,r,fPair,rcType,storeOrder(t,1),storeOrder(t,2)) = p;
+                        zSNRtStat(f,r,fPair,rcType,storeOrder(t,1),storeOrder(t,2)) = zSNRResults.tstat;
                     end
 
                 end
@@ -547,8 +566,13 @@ function numberOddball_Exp2(varargin)
                         end
                     else
                     end
-                    curSig = tPval(curIdx,r,1,opt.plotSplit+1,:,f)<0.05;
-%                     curSig = AmptPval(curIdx,r,1,opt.plotSplit+1,:,f)<0.05;
+                    if opt.ampTest == 0
+                        curSig = tPval(curIdx,r,1,opt.plotSplit+1,:,f)<0.05;
+                    elseif opt.ampTest == 1
+                        curSig = AmptPval(curIdx,r,1,opt.plotSplit+1,:,f)<0.05;
+                    elseif opt.ampTest == 2
+                        curSig = zSNRtPval(curIdx,r,1,opt.plotSplit+1,:,f)<0.05;
+                    end
                     %curSig = curSig+(tPval(curIdx,r,1,opt.plotSplit+1,:,f)<0.005);
                     curSig = squeeze(curSig);
 %                     if any(any(curSig))
@@ -631,17 +655,31 @@ function numberOddball_Exp2(varargin)
         figPos(4) = figHeight;
         figPos(3) = figWidth;
         set(gcf,'pos',figPos);
+        % test sufix label
+        if opt.ampTest == 0
+            testplot = 'vec';
+        elseif opt.ampTest == 1
+            testplot = 'amp';
+        elseif opt.ampTest == 2
+            testplot = 'zSNR';
+        end
+        % behSplit label
+        if opt.behSplit
+            trialLab = 'corTrials';
+        else
+            trialLab = 'allTrials';
         if plotSNR        
             export_fig(sprintf('%s/%s_car%d_%s_snr.pdf',figureLocation,dataType,carriers(f),rcaType),'-pdf','-transparent',gcf);
         else
             if trainData == 0
-                export_fig(sprintf('%s/%s_car%d_%s.pdf',figureLocation,dataType,carriers(f),rcaType),'-pdf','-transparent',gcf);
+                export_fig(sprintf('%s/%s_car%d_%s_%s_%s.pdf',figureLocation,dataType,carriers(f),rcaType,testplot,trialLab),'-pdf','-transparent',gcf);
             elseif trainData == 1
-                export_fig(sprintf('%s/%s_car%d_%s_%s.pdf',figureLocation,dataType,carriers(f),rcaType,trainStim),'-pdf','-transparent',gcf);
+                export_fig(sprintf('%s/%s_car%d_%s_%s_%s_%s.pdf',figureLocation,dataType,carriers(f),rcaType,trainStim,testplot,trialLab),'-pdf','-transparent',gcf);
             elseif trainData == 2
-                export_fig(sprintf('%s/%s_car%d_%s_%s.pdf',figureLocation,dataType,carriers(f),rcaType,trainStim),'-pdf','-transparent',gcf);
+                export_fig(sprintf('%s/%s_car%d_%s_%s_%s_%s.pdf',figureLocation,dataType,carriers(f),rcaType,trainStim,testplot,trialLab),'-pdf','-transparent',gcf);
             else
             end
+        end
         end
     end
 %% Test plot just one condition
