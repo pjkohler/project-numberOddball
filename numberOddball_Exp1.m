@@ -296,8 +296,8 @@ function numberOddball_Exp1(varargin)
     
     numConds = size(ampVals,3);
     cBrewer = load('colorBrewer');
-    boldColors = cBrewer.rgb20([1,7,5,9],:);
-    weakColors = cBrewer.rgb20([2,8,6,10],:);
+    boldColors = cBrewer.rgb20([5,9,13,3],:);
+    weakColors = cBrewer.rgb20([6,10,14,4],:);
     barH = [0,0];
     barWidth = .4;
     yUnit = 1;
