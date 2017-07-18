@@ -43,7 +43,7 @@ function numberOddball_Exp1(varargin)
             'launchRCA', false, ...
             'trialError', false, ...
             'plotSplit', false, ...
-            'forceSourceData', true, ...
+            'forceSourceData', false, ...
             'axxType', 'ALL', ...
             'plotSNR', false ...
             );
@@ -277,12 +277,9 @@ function numberOddball_Exp1(varargin)
 %     plotSNR = false;
     xVals = fullRCA(1).settings.freqsToUse; % frequencies are x-values
     axxTicks = {[0 250 500 750 1000],[0 250 500 750 1000 1250],[0 500 1000 1500 2000]};
-    bgColors = [1,1,1; 0,0,0];
-    subColors =  repmat(distinguishable_colors(4,bgColors),2,1);
-    subColors = subColors(condsToUse,:);
     lWidth = 1;
-    fSize = 8;
-    gcaOpts = {'tickdir','out','ticklength',[0.0200,0.0200],'box','off','fontsize',fSize,'fontname','Arial','linewidth',lWidth};
+    fSize = 10;
+    gcaOpts = {'tickdir','out','ticklength',[0.0200,0.0200],'box','off','fontsize',fSize,'fontname','Helvetica','linewidth',lWidth};
 
     yFigs = nComp+1;
 
@@ -296,6 +293,15 @@ function numberOddball_Exp1(varargin)
 
     binVals = fullRCA(1).settings.freqLabels';
     clear egiH;
+    
+    numConds = size(ampVals,3);
+    cBrewer = load('colorBrewer');
+    boldColors = cBrewer.rgb20([1,7,5,9],:);
+    weakColors = cBrewer.rgb20([2,8,6,10],:);
+    barH = [0,0];
+    barWidth = .4;
+    yUnit = 1;
+    
     for f = 1:3 % frequency pairs
         % Axx xVals
         nTps = size(axxProjMat(f).ProjMat,1);
@@ -318,9 +324,6 @@ function numberOddball_Exp1(varargin)
                     mrC.plotOnEgi(curRCA.A(:,r),rcaColorBar);
                     hold off
                     rcaType = 'full';
-
-
-
                 else
                     curRCA = oddRCA(f);
                     egiH(r,1) = subplot(yFigs,xFigs,3+(r-1)*xFigs); %New Candidate
@@ -361,10 +364,10 @@ function numberOddball_Exp1(varargin)
 
                 hold on
                 for c=1:2
-                    AxxH(r) = plot(xValsAxx,dataToPlot(:,c),'-','LineWidth',lWidth,'Color',subColors(c,:));
-                    ErrorBars(xValsAxx',dataToPlot(:,c),errorToPLot(:,c),'color',subColors(c,:));
+                    AxxH(r) = plot(xValsAxx,dataToPlot(:,c),'-','LineWidth',lWidth,'Color',boldColors(c,:));
+                    ErrorBars(xValsAxx',dataToPlot(:,c),errorToPLot(:,c),'color',boldColors(c,:));
 
-                    %fill([(xValsAxx)';flipud((xValsAxx)')],[dataToPlot(:,c)-errorToPLot(:,c);flipud(dataToPlot(:,c)+errorToPLot(:,c))],subColors(c,:),'EdgeColor',subColors(c,:),'LineWidth',0.2);
+                    %fill([(xValsAxx)';flipud((xValsAxx)')],[dataToPlot(:,c)-errorToPLot(:,c);flipud(dataToPlot(:,c)+errorToPLot(:,c))],boldColors(c,:),'EdgeColor',boldColors(c,:),'LineWidth',0.2);
                     %alpha(0.2);
                 end
                 ylim([AxxyMin,AxxyMax]);
@@ -373,7 +376,7 @@ function numberOddball_Exp1(varargin)
                 yLine = repmat(get(gca,'YLim'),nReps(f),1)';
                 line(repmat(stimOnset,2,1),yLine,'Color','black');
                 if r == 1
-                    titleStr = 'Axx Wave';
+                    titleStr = 'Waveform';
                     title(titleStr);
                 end
                 s = get(gca, 'Position');
@@ -395,9 +398,9 @@ function numberOddball_Exp1(varargin)
                 end
                 hold on
                 for c=1:2
-                    AxxH(r) = plot(xValsAxx,dataToPlot(:,c),'-','LineWidth',lWidth,'Color',subColors(c,:));
-                    ErrorBars(xValsAxx',dataToPlot(:,c),errorToPLot(:,c),'color',subColors(c,:));
-                    %fill([(xValsAxx)';flipud((xValsAxx)')],[dataToPlot(:,c)-errorToPLot(:,c);flipud(dataToPlot(:,c)+errorToPLot(:,c))],subColors(c,:),'EdgeColor',subColors(c,:),'LineWidth',0.2);
+                    AxxH(r) = plot(xValsAxx,dataToPlot(:,c),'-','LineWidth',lWidth,'Color',boldColors(c,:));
+                    ErrorBars(xValsAxx',dataToPlot(:,c),errorToPLot(:,c),'color',boldColors(c,:));
+                    %fill([(xValsAxx)';flipud((xValsAxx)')],[dataToPlot(:,c)-errorToPLot(:,c);flipud(dataToPlot(:,c)+errorToPLot(:,c))],boldColors(c,:),'EdgeColor',boldColors(c,:),'LineWidth',0.2);
                     %alpha(0.2);
                 end
                 ylim([AxxyMin,AxxyMax]);
@@ -406,7 +409,7 @@ function numberOddball_Exp1(varargin)
                 yLine = repmat(get(gca,'YLim'),nReps(f),1)';
                 line(repmat(stimOnset,2,1),yLine,'Color','black');
                 if r == 1
-                    titleStr = 'Oddball Axx Wave';
+                    titleStr = 'Oddball Waveform';
                     title(titleStr);
                 end
                 s = get(gca, 'Position');
@@ -427,9 +430,9 @@ function numberOddball_Exp1(varargin)
                 end
                 hold on
                 for c=1:2
-                    AxxH(r) = plot(xValsAxx,dataToPlot(:,c),'-','LineWidth',lWidth,'Color',subColors(c,:));
-                    ErrorBars(xValsAxx',dataToPlot(:,c),errorToPLot(:,c),'color',subColors(c,:));
-                    %fill([(xValsAxx)';flipud((xValsAxx)')],[dataToPlot(:,c)-errorToPLot(:,c);flipud(dataToPlot(:,c)+errorToPLot(:,c))],subColors(c,:),'EdgeColor',subColors(c,:),'LineWidth',0.2);
+                    AxxH(r) = plot(xValsAxx,dataToPlot(:,c),'-','LineWidth',lWidth,'Color',boldColors(c,:));
+                    ErrorBars(xValsAxx',dataToPlot(:,c),errorToPLot(:,c),'color',boldColors(c,:));
+                    %fill([(xValsAxx)';flipud((xValsAxx)')],[dataToPlot(:,c)-errorToPLot(:,c);flipud(dataToPlot(:,c)+errorToPLot(:,c))],boldColors(c,:),'EdgeColor',boldColors(c,:),'LineWidth',0.2);
                     %alpha(0.2);
                 end
                 ylim([AxxyMin,AxxyMax]);
@@ -438,7 +441,7 @@ function numberOddball_Exp1(varargin)
                 yLine = repmat(get(gca,'YLim'),nReps(f),1)';
                 line(repmat(stimOnset,2,1),yLine,'Color','black');
                 if r == 1
-                    titleStr = 'Carrier Axx Wave';
+                    titleStr = 'Carrier Waveform';
                     title(titleStr);
                 end
                 s = get(gca, 'Position');
@@ -451,36 +454,34 @@ function numberOddball_Exp1(varargin)
                 subplot(yFigs,xFigs,(xFigs-4)+(r-1)*xFigs+(t-1));
                 numFreqs = max(freqsToUse)/2;
                 curIdx = (freqsToUse(1:end/2))+(t-1)*numFreqs;
+                xVals = repmat((1:numFreqs),numConds,1) + repmat(linspace(-barWidth/2,barWidth/2,numConds),numFreqs,1)';
+
 
                 hold on
-                for c=1:2
+                for c=1:numConds;
                     if opt.plotSNR
-                        curRange = snrVals(curIdx,r,:,f,opt.plotSplit+1);
-                        %valSet = snrVals(curIdx,r,c,f,opt.plotSplit+1);
-                        ampH(c)=plot(1:numFreqs,snrVals(curIdx,r,c,f,opt.plotSplit+1),'-','LineWidth',lWidth,'Color',subColors(c,:));
+                        yVals = snrVals(curIdx,r,c,f,opt.plotSplit+1);
+                        curRange = snrVals(:,r,:,f,opt.plotSplit+1);
                     else
-                        curRange = ampVals(:,:,:,f,opt.plotSplit+1);
-                        %valSet = ampVals(:,r,c,f,opt.plotSplit+1);
-                        ampH(c)=plot(1:numFreqs,ampVals(curIdx,r,c,f,opt.plotSplit+1),'-','LineWidth',lWidth,'Color',subColors(c,:));
-                        %plot(1:2,noiseVals(curIdx,r,c,f,opt.plotSplit+1),'sq','Color',subColors(c,:),'MarkerSize',5);
-                        errorbar(1:numFreqs,ampVals(curIdx,r,c,f,opt.plotSplit+1),errLB(curIdx,r,c,f,opt.plotSplit+1),errUB(curIdx,r,c,f,opt.plotSplit+1),'Color',subColors(c,:),'LineWidth',lWidth);
+                        yVals = ampVals(curIdx,r,c,f,opt.plotSplit+1);
+                        curRange = ampVals(:,r,:,f,opt.plotSplit+1);
+                        errorbar(xVals(c,:),yVals,errLB(curIdx,r,c,f,opt.plotSplit+1),errUB(curIdx,r,c,f,opt.plotSplit+1),'.','Color','k','LineWidth',lWidth,'marker','none');
                     end
-                    yMax = ceil(max(curRange(:)));
                     zeroSig = tVs0Pval(curIdx,r,c,f,opt.plotSplit+1)<0.05;
-                    if any(zeroSig)
-                        if c==1
-                            arrayfun(@(x) ...
-                                text(x-.15,yMax*.95,'*','fontsize',20,'HorizontalAlignment','center','color',subColors(c,:)),...
-                                find(zeroSig==1),'uni',false);
+                    
+                    barH(c) = bar(xVals(c,:),yVals,'BarWidth',barWidth,'edgecolor','none','facecolor',boldColors(c,:));
+                    for z = 1:length(zeroSig)
+                        if ~zeroSig(z)
+                            bar(xVals(c,z),yVals(z),'BarWidth',barWidth,'edgecolor','none','facecolor',weakColors(c,:));
                         else
-                            arrayfun(@(x) ...
-                                text(x+.15,yMax*.95,'*','fontsize',20,'HorizontalAlignment','center','color',subColors(c,:)),...
-                                find(zeroSig==1),'uni',false);
                         end
-                    else
                     end
                 end
-
+                
+                yMax = ceil(max(curRange(:))) + yUnit;
+                ylim([0,yMax]);
+                xlim([.5,numFreqs+0.5]);
+                
                 curSig = tPval(curIdx,r,f,opt.plotSplit+1)<0.05;
                 curSig = curSig+(tPval(curIdx,r,f,opt.plotSplit+1)<0.005);
                 if any(curSig)
@@ -488,16 +489,12 @@ function numberOddball_Exp1(varargin)
                     arrayfun(@(x) text(x,yMax*.85,'*','fontsize',20,'HorizontalAlignment','center'), find(curSig==2),'uni',false);
                 else
                 end
-
-
-                yUnit = 1;
-                ylim([0,yMax]);
-                xlim([.5,numFreqs+0.5]);
+                
                 if r== 3  && t == 1
                     if opt.plotSNR
-                        ylabel('SNR')
+                        ylabel('SNR','fontname','Helvetica','fontsize',fSize)
                     else
-                        ylabel('Amplitude (\muVolts)')
+                        ylabel('Amplitude (\muVolts)','fontname','Helvetica','fontsize',fSize)
                     end
                 else
                 end
@@ -510,15 +507,15 @@ function numberOddball_Exp1(varargin)
                     harmLabels = {'1F2','2F2','3F2','4F2'};
                 end
                 if r==1
-                    title(titleStr);
+                    title(titleStr,'fontname','Helvetica','fontsize',fSize);
                 elseif r==6
                     if t==2
-                        lH = legend(ampH,{'number','control'});
+                        lH = legend(barH,{'number','control'});
                         legend boxoff
                         lPos = get(lH,'position');
-                        lPos(1) = lPos(1) + .10;
-                        lPos(2) = lPos(2) + .05;
-                        set(lH,'position',lPos);
+                        lPos(1) = lPos(1) + .18;
+                        lPos(2) = lPos(2) + .04;
+                        set(lH,'position',lPos,'fontsize',14,'fontname','Helvetica');
                     else
                     end
                 else
@@ -534,7 +531,7 @@ function numberOddball_Exp1(varargin)
                     addVal = 0.8;
                     shiftLeft = 0.02;
                 else
-                    addVal = 1;
+                    addVal = 0.72;
                     shiftLeft = 0;
                 end
                 newPos = get(egiH(r,z),'position');
