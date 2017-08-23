@@ -54,7 +54,7 @@ for c=1:length(conditions)/2 % assume freq pairs
 end
 %For plotting
 figureLocation = sprintf('%s/figures',dataLocation);
-lWidth = 1;
+lWidth = 2;
 freqLabels = {'1:6Hz','0.75:3.75Hz','0.5:3Hz'};
 gcaOpts = {'box','off','fontname','Arial','linewidth',lWidth};
 avgdPr = mean(dPr,2);
@@ -62,32 +62,44 @@ avgBias = mean(bias,2);
 errdPr = std(dPr,[],2)./sqrt(length(folderNames)-1);
 errBias = std(bias,[],2)./sqrt(length(folderNames)-1);
 
-plot([1 2 3], avgdPr,'-','LineWidth',lWidth);
-errorbar(avgdPr,errdPr);
+%dPrime
+plot([1 2 3], avgdPr,'.','markersize',20,'Color','b');
+hold on
+errorbar(avgdPr,errdPr,'Color','b');
 ylabel('dPrime');
 xlabel('Freq pairs');
 set(gca,gcaOpts{:},'xtick',[1,2,3],'xticklabel',freqLabels, 'xlim',[0.5,3.5]);
+hold off
 export_fig(sprintf('%s/avg_dPrime.pdf',figureLocation));
 
-plot([1 2 3], avgBias,'-','LineWidth',lWidth);
-errorbar(avgBias,errBias);
+%Bias
+plot([1 2 3], avgBias,'.','markersize',20,'Color','b');
+hold on
+errorbar(avgBias,errBias,'Color','b');
 ylabel('Bias');
 xlabel('Freq pairs');
 set(gca,gcaOpts{:},'xtick',[1,2,3],'xticklabel',freqLabels, 'xlim',[0.5,3.5]);
+hold off
 export_fig(sprintf('%s/avg_Bias.pdf',figureLocation));
 
-xFigs = 2;% dPrime or Bias
-yFigs = 3;% Freq pairs
-titleStr = {'dPrime', 'Bias'};
+% Individual subject plot
+cBrewer = load('colorBrewer');
+colors = cBrewer.rgb20(round(linspace(1,20,length(IDs))),:);
+yFigs = 2;% dPrime or Bias
+xFigs = 3;% Freq pairs
+titleStr = {'1:6Hz','0.75:3.75Hz','0.5:3Hz'};
+titleStr2 = {'dPrime', 'Bias'};
+
 for f=1:3 % Freq pairs
     for c=1:2 %dPrime or Bias
-        subplot(yFigs,xFigs,xFigs*(f-1)+c)
+        subplot(yFigs,xFigs,xFigs*(c-1)+f)
         if c == 1
             dataToPlot = dPr(f,:);
         else
             dataToPlot = bias(f,:);
         end
-        plot([1:length(IDs)],dataToPlot,'.','markersize',20);
+        scatter(1:length(IDs),dataToPlot,60,colors,'filled');
+        %plot([1:length(IDs)],dataToPlot,'.','markersize',20);
         hold on
         if c==1
             hline = refline([0,errdPr(f)*2]); % 2* std error of dprime sample distribution
@@ -102,8 +114,15 @@ for f=1:3 % Freq pairs
         yMax = max(dataToPlot);
         set(gca,gcaOpts{:},'xtick',[1:length(IDs)],'xticklabel',IDs, 'xlim',[0.5,length(IDs)+0.5],'ylim',[0-0.5,yMax+0.5]);
         xtickangle(90);
-        if f == 1
-            title(titleStr{c})
+        if c == 1
+            title(titleStr{f})
+            if f == 1
+                ylabel(titleStr2{c})
+            end
+        else
+            if f == 1
+                ylabel(titleStr2{c})
+            end
         end
         hold off
     end

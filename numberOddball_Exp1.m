@@ -20,7 +20,7 @@ function numberOddball_Exp1(varargin)
     %                       RCA [true]/false
     %
     %   axxType         - string indicating the type of axx data to plot
-    %                      'ALL'/'NF1'
+    %                      ['ALL']/'NF1'
     %   plotSNR         - if true use SNR instead of vector based stats
     %                     true/[false]
     

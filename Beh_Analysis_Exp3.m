@@ -1,6 +1,6 @@
 close all;
 clear all;
-dataLocation = '/Volumes/Denali_4D2/kohler/EEG_EXP/DATA/numeroOddball/Experiment2';
+dataLocation = '/Volumes/Denali_4D2/kohler/EEG_EXP/DATA/numeroOddball/Experiment3';
 %dataLocation = '~/Documents/Research/Stanford/SSVEP';
 folderNames=subfolders(sprintf('%s/20*',dataLocation),1);
 for s = 1:length(folderNames)
@@ -25,7 +25,7 @@ for s = 1:length(folderNames)
    end
    IDs{s} = folderNames{s}(end-6:end);
    misIdx(:,s) = respData(:,2,s)==0;
-   cntrlcond = [2,5];
+   cntrlcond = [1,3,5,7];
    for c=1:length(conditions)
        if any(c==cntrlcond)
            corrResp = 2;
@@ -48,17 +48,15 @@ end
 % dPr and Bias using a simpler loop reorder
 % so that the order is 6v5 6v9 8v9 8v5
 
-Carriers = [6 8];
-Oddballs = [5 9];
-NewOrder = [4 6 3 1 5 2];
-FAIdx = [5,6];
+Carriers = [5 6 8 9];
+Oddballs = [8 9 5 6];
+FAIdx = cntrlcond;
 HRmask = ~ismember(conditions,FAIdx);
 
 
 mean(aveAcc,1)
 mean(aveAcc,2)
 
-aveAcc = aveAcc(NewOrder,:);
 
 
 
@@ -68,42 +66,40 @@ Zsc = norminv(HrFa);
 dPr = zeros(sum(HRmask),length(folderNames));
 bias = zeros(sum(HRmask),length(folderNames));
 
-ctr = 0;
 for c=1:length(Carriers) % number of carriers
-    for odd=1:length(Oddballs) % number of oddballs
-        car = sum(HRmask) + c;
-        ctr = ctr + 1;
-        dPr(ctr,:) = Zsc(ctr,:) - Zsc(car,:);
-        bias(ctr,:) = -(Zsc(ctr,:) + Zsc(car,:))/2;
-    end
+    car = FAIdx(c);
+    odd = car+1;
+    dPr(c,:) = Zsc(odd,:) - Zsc(car,:);
+    bias(c,:) = -(Zsc(odd,:) + Zsc(car,:))/2;
 end
 
 
-% Identify accurate subjects to analyze separately using 6v5 condition (the
-% most even condition)
-accurateS = dPr(1,:)>=median(dPr(1,:));
-inaccurateS = ~accurateS;
-filename= sprintf('%s/mediansplit.mat',dataLocation);
-save(filename,'accurateS','inaccurateS');
-
-% Identify correct and incorrect trials by subject to indes RCA analysis
-% only with correct trials)
-filename = sprintf('%s/TrialIdx.mat',dataLocation);
-save(filename,'TrialIdx');
+% % Identify accurate subjects to analyze separately using 6v5 condition (the
+% % most even condition)
+% accurateS = dPr(1,:)>=median(dPr(1,:));
+% inaccurateS = ~accurateS;
+% filename= sprintf('%s/mediansplit.mat',dataLocation);
+% save(filename,'accurateS','inaccurateS');
+% 
+% % Identify correct and incorrect trials by subject to indes RCA analysis
+% % only with correct trials)
+% filename = sprintf('%s/TrialIdx.mat',dataLocation);
+% save(filename,'TrialIdx');
 
 
 
 %For plotting
 figureLocation = sprintf('%s/figures',dataLocation);
 lWidth = 2;
-condLabels = {'6v5','6v9','8v9','8v5'};
+condLabels = {'5v8','6v9','8v5','9v6'};
 gcaOpts = {'box','off','fontname','Arial','linewidth',lWidth};
 avgdPr = mean(dPr,2);
 avgBias = mean(bias,2);
 errdPr = std(dPr,[],2)./sqrt(length(folderNames)-1);
 errBias = std(bias,[],2)./sqrt(length(folderNames)-1);
 
-% dPrime
+
+%Increasing Vs Decreasing
 plot([1 2], avgdPr(1:2),'.','markersize',20,'Color','b');
 hold on
 errorbar([1 2],avgdPr(1:2),errdPr(1:2),'Color','b');
@@ -113,9 +109,22 @@ ylabel('dPrime');
 xlabel('Stim Pairs');
 set(gca,gcaOpts{:},'xtick',[1,2,3,4],'xticklabel',condLabels, 'xlim',[0.5,4.5]);
 hold off
-export_fig(sprintf('%s/Exp2_avg_dPrime.pdf',figureLocation));
+export_fig(sprintf('%s/Exp3_avg_dPrime_dir.pdf',figureLocation));
 
-%Bias
+%5-8 Vs 6-9
+plot([1 2], avgdPr([1 3]),'.','markersize',20,'Color','b');
+hold on
+errorbar([1 2],avgdPr([1 3]),errdPr([1 3]),'Color','b');
+plot([3 4], avgdPr([2 4]),'.','markersize',20,'Color','b');
+errorbar([3 4],avgdPr([2 4]),errdPr([2 4]),'Color','b');
+ylabel('dPrime');
+xlabel('Stim Pairs');
+set(gca,gcaOpts{:},'xtick',[1,2,3,4],'xticklabel',condLabels([1 3 2 4]), 'xlim',[0.5,4.5]);
+hold off
+export_fig(sprintf('%s/Exp3_avg_dPrime_num.pdf',figureLocation));
+
+
+% Bias Increasing Vs Decreasing
 plot([1 2], avgBias(1:2),'.','markersize',20,'Color','b');
 hold on
 errorbar([1 2],avgBias(1:2),errBias(1:2),'Color','b');
@@ -125,15 +134,26 @@ ylabel('Bias');
 xlabel('Stim Pairs');
 set(gca,gcaOpts{:},'xtick',[1,2,3,4],'xticklabel',condLabels, 'xlim',[0.5,4.5]);
 hold off
-export_fig(sprintf('%s/Exp2_avg_Bias.pdf',figureLocation));
+export_fig(sprintf('%s/Exp3_avg_Bias_dir.pdf',figureLocation));
 
+% Bias 5-8 Vs 6-9
+plot([1 2], avgBias([1 3]),'.','markersize',20,'Color','b');
+hold on
+errorbar([1 2],avgBias([1 3]),errBias([1 3]),'Color','b');
+plot([3 4], avgBias([2 4]),'.','markersize',20,'Color','b');
+errorbar([3 4],avgBias([2 4]),errBias([2 4]),'Color','b');
+ylabel('Bias');
+xlabel('Stim Pairs');
+set(gca,gcaOpts{:},'xtick',[1,2,3,4],'xticklabel',condLabels([1 3 2 4]), 'xlim',[0.5,4.5]);
+hold off
+export_fig(sprintf('%s/Exp3_avg_Bias_num.pdf',figureLocation));
 
 %Individual subject plot
 cBrewer = load('colorBrewer');
 colors = cBrewer.rgb20(round(linspace(1,20,length(IDs))),:);
 yFigs = 2;% dPrime or Bias
 xFigs = 4;% Stim pairs
-titleStr = {'6v5','6v9','8v9','8v5'};
+titleStr = {'5v8','6v9','8v5','9v6'};
 titleStr2 = {'dPrime', 'Bias'};
 for f=1:4 % Stim pairs
     for c=1:2 %dPrime or Bias
@@ -148,7 +168,7 @@ for f=1:4 % Stim pairs
             yMax = max(max(bias));
         end
         scatter(1:length(IDs),dataToPlot,60,colors,'filled');
-        %plot([1:length(IDs)],dataToPlot,'.','markersize',20);
+        %plot([1:length(IDs)],dataToPlot,'.','markersize',20,'Color',colors);
         hold on
         if c==1
             hline = refline([0,errdPr(f)*2]); % 2* std error of dprime sample distribution
@@ -180,7 +200,7 @@ figPos = get(gcf,'pos');
 figPos(4) = 14;
 figPos(3) = 28;
 set(gcf,'pos',figPos);
-export_fig(sprintf('%s/Exp2_SubjPerformance.pdf',figureLocation));
+export_fig(sprintf('%s/Exp3_SubjPerformance.pdf',figureLocation));
 
     
        
