@@ -25,6 +25,8 @@ for s = 1:length(folderNames)
    end
    IDs{s} = folderNames{s}(end-6:end);
    misIdx(:,s) = respData(:,2,s)==0;
+   % Change correct response mapping for control and experimental
+   % condiitons
    cntrlcond = [1,3,5,7];
    for c=1:length(conditions)
        if any(c==cntrlcond)
@@ -34,26 +36,21 @@ for s = 1:length(folderNames)
        end
        curIdx = respData(:,1,s) == conditions(c);
        TrialIdx(:,s,c) = respData(curIdx,2,s) == corrResp;
-       respData(~misIdx(:,s) & curIdx,4,s) = respData(~misIdx(:,s) & curIdx,2,s) == corrResp;
-       percMis(c,s) = length(find(misIdx(curIdx,s)))./length(find(curIdx));
-       aveAcc(c,s) = (sum(respData(~misIdx(:,s) & curIdx,2,s) == corrResp)+0.5)./(length(respData(~misIdx(:,s) & curIdx,2,s) == corrResp)+1);
+       respData(~misIdx(:,s) & curIdx,4,s) = respData(~misIdx(:,s) & curIdx,2,s) == corrResp; % Calculate accuracy
+       percMis(c,s) = length(find(misIdx(curIdx,s)))./length(find(curIdx)); % Calculate percent missing
+       aveAcc(c,s) = (sum(respData(~misIdx(:,s) & curIdx,2,s) == corrResp)+0.5)./(length(respData(~misIdx(:,s) & curIdx,2,s) == corrResp)+1); % average accuracy across trials
    end
 end
 %Put into variables, calculate dprime, FA, TP
 
 
-% Experimental Conditions
-% Reorder aveAcc, HrFa, and Zsc so
-% that the false alrm conditions are conds 5 and 6 and then I calculate
-% dPr and Bias using a simpler loop reorder
-% so that the order is 6v5 6v9 8v9 8v5
 
 Carriers = [5 6 8 9];
 Oddballs = [8 9 5 6];
-FAIdx = cntrlcond;
-HRmask = ~ismember(conditions,FAIdx);
+FAIdx = cntrlcond; % false alarm
+HRmask = ~ismember(conditions,FAIdx); % hit rate
 
-
+%Look at data
 mean(aveAcc,1)
 mean(aveAcc,2)
 
@@ -61,7 +58,7 @@ mean(aveAcc,2)
 
 
 HrFa = aveAcc;
-HrFa(FAIdx,:) = 1 - HrFa(FAIdx,:);
+HrFa(FAIdx,:) = 1 - HrFa(FAIdx,:); % FA = 1-accuracy
 Zsc = norminv(HrFa);
 dPr = zeros(sum(HRmask),length(folderNames));
 bias = zeros(sum(HRmask),length(folderNames));
@@ -107,7 +104,9 @@ plot([3 4], avgdPr(3:4),'.','markersize',20,'Color','b');
 errorbar([3 4],avgdPr(3:4),errdPr(3:4),'Color','b');
 ylabel('dPrime');
 xlabel('Stim Pairs');
-set(gca,gcaOpts{:},'xtick',[1,2,3,4],'xticklabel',condLabels, 'xlim',[0.5,4.5],'box','off');
+yMin = min(min(dPr));
+yMax = max(max(dPr));
+set(gca,gcaOpts{:},'xtick',[1,2,3,4],'xticklabel',condLabels, 'xlim',[0.5,4.5],'ylim',[0,yMax+0.5],'box','off');
 hold off
 export_fig(sprintf('%s/Exp3_avg_dPrime_dir.pdf',figureLocation),'-pdf','-transparent',gcf);
 
@@ -119,7 +118,9 @@ plot([3 4], avgdPr([2 4]),'.','markersize',20,'Color','b');
 errorbar([3 4],avgdPr([2 4]),errdPr([2 4]),'Color','b');
 ylabel('dPrime');
 xlabel('Stim Pairs');
-set(gca,gcaOpts{:},'xtick',[1,2,3,4],'xticklabel',condLabels([1 3 2 4]), 'xlim',[0.5,4.5],'box','off');
+yMin = min(min(dPr));
+yMax = max(max(dPr));
+set(gca,gcaOpts{:},'xtick',[1,2,3,4],'xticklabel',condLabels([1 3 2 4]), 'xlim',[0.5,4.5],'ylim',[0,yMax+0.5],'box','off');
 hold off
 export_fig(sprintf('%s/Exp3_avg_dPrime_num.pdf',figureLocation),'-pdf','-transparent',gcf);
 
@@ -132,7 +133,9 @@ plot([3 4], avgBias(3:4),'.','markersize',20,'Color','b');
 errorbar([3 4],avgBias(3:4),errBias(3:4),'Color','b');
 ylabel('Bias');
 xlabel('Stim Pairs');
-set(gca,gcaOpts{:},'xtick',[1,2,3,4],'xticklabel',condLabels, 'xlim',[0.5,4.5],'box','off');
+yMin = min(min(bias));
+yMax = max(max(bias));
+set(gca,gcaOpts{:},'xtick',[1,2,3,4],'xticklabel',condLabels, 'xlim',[0.5,4.5],'ylim',[yMin,yMax],'box','off');
 hold off
 export_fig(sprintf('%s/Exp3_avg_Bias_dir.pdf',figureLocation),'-pdf','-transparent',gcf);
 
@@ -144,7 +147,9 @@ plot([3 4], avgBias([2 4]),'.','markersize',20,'Color','b');
 errorbar([3 4],avgBias([2 4]),errBias([2 4]),'Color','b');
 ylabel('Bias');
 xlabel('Stim Pairs');
-set(gca,gcaOpts{:},'xtick',[1,2,3,4],'xticklabel',condLabels([1 3 2 4]), 'xlim',[0.5,4.5],'box','off');
+yMin = min(min(bias));
+yMax = max(max(bias));
+set(gca,gcaOpts{:},'xtick',[1,2,3,4],'xticklabel',condLabels([1 3 2 4]), 'xlim',[0.5,4.5],'ylim',[yMin,yMax],'box','off');
 hold off
 export_fig(sprintf('%s/Exp3_avg_Bias_num.pdf',figureLocation),'-pdf','-transparent',gcf);
 

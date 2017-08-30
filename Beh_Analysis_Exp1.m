@@ -25,6 +25,8 @@ for s = 1:length(folderNames)
    end
    IDs{s} = folderNames{s}(end-6:end);
    misIdx(:,s) = respData(:,2,s)==0;
+   % Change correct response mapping for control and experimental
+   % condiitons
    for c=1:length(conditions)
        if mod(c,2) == 1
            corrResp = 1;
@@ -37,13 +39,14 @@ for s = 1:length(folderNames)
    end
 end
 %Put into variables, calculate dprime, FA, TP
-mean(aveAcc,1);
-mean(aveAcc,2);
-median(aveAcc,1);
-median(aveAcc,2);
-FAIdx = [2,4,6];
+
+%Look at data
+mean(aveAcc,1)
+mean(aveAcc,2)
+
+FAIdx = [2,4,6]; % False alarm
 HrFa = aveAcc;
-HrFa(FAIdx,:) = 1 - HrFa(FAIdx,:);
+HrFa(FAIdx,:) = 1 - HrFa(FAIdx,:); % FA = 1-accuracy
 Zsc = norminv(HrFa);
 dPr = zeros(length(conditions)/2,length(folderNames));
 bias = zeros(length(conditions)/2,length(folderNames));
@@ -52,6 +55,7 @@ for c=1:length(conditions)/2 % assume freq pairs
     dPr(c,:) = Zsc(cIdx,:) - Zsc(cIdx+1,:);
     bias(c,:) = -(Zsc(cIdx,:) + Zsc(cIdx+1,:))/2;
 end
+
 %For plotting
 figureLocation = sprintf('%s/figures',dataLocation);
 lWidth = 2;
@@ -68,7 +72,8 @@ hold on
 errorbar(avgdPr,errdPr,'Color','b');
 ylabel('dPrime');
 xlabel('Freq pairs');
-set(gca,gcaOpts{:},'xtick',[1,2,3],'xticklabel',freqLabels, 'xlim',[0.5,3.5],'box','off');
+yMax = max(avgdPr+errdPr);
+set(gca,gcaOpts{:},'xtick',[1,2,3],'xticklabel',freqLabels,'xlim',[0.5,3.5],'ylim',[0,yMax+0.5],'box','off');
 hold off
 export_fig(sprintf('%s/avg_dPrime.pdf',figureLocation),'-pdf','-transparent',gcf);
 
@@ -90,15 +95,15 @@ xFigs = 3;% Freq pairs
 titleStr = {'6:1Hz','3.75:0.75Hz','3:0.5Hz'};
 titleStr2 = {'dPrime', 'Bias'};
 
-for f=1:3 % Freq pairs
-    for c=1:2 %dPrime or Bias
+for c=1:2 % Freq pairs
+    for f=1:3 %dPrime or Bias
         subplot(yFigs,xFigs,xFigs*(c-1)+f)
         if c == 1
-            dataToPlot = dPr(f,:);
+            dataToPlot = dPr;
         else
-            dataToPlot = bias(f,:);
+            dataToPlot = bias;
         end
-        scatter(1:length(IDs),dataToPlot,60,colors,'filled');
+        scatter(1:length(IDs),dataToPlot(f,:),60,colors,'filled');
         %plot([1:length(IDs)],dataToPlot,'.','markersize',20);
         hold on
         if c==1
@@ -110,10 +115,6 @@ for f=1:3 % Freq pairs
         end
         hline.Color = 'k';
         hline.LineWidth = 2;
-        yMin = min(dataToPlot);
-        yMax = max(dataToPlot);
-        set(gca,gcaOpts{:},'xtick',[1:length(IDs)],'xticklabel',IDs, 'xlim',[0.5,length(IDs)+0.5],'ylim',[0-0.5,yMax+0.5],'box','off');
-        xtickangle(90);
         if c == 1
             title(titleStr{f})
             if f == 1
@@ -124,8 +125,12 @@ for f=1:3 % Freq pairs
                 ylabel(titleStr2{c})
             end
         end
+        yMax = max(max(dataToPlot));
+        set(gca,gcaOpts{:},'xtick',[1:length(IDs)],'xticklabel',IDs, 'xlim',[0.5,length(IDs)+0.5],'ylim',[0-0.5,yMax+0.5],'box','off');
+        xtickangle(90);
         hold off
     end
+    
 end
 export_fig(sprintf('%s/SubjPerformance.pdf',figureLocation),'-pdf','-transparent',gcf);
 

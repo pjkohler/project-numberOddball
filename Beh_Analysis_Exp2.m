@@ -25,6 +25,8 @@ for s = 1:length(folderNames)
    end
    IDs{s} = folderNames{s}(end-6:end);
    misIdx(:,s) = respData(:,2,s)==0;
+   % Change correct response mapping for control and experimental
+   % condiitons
    cntrlcond = [2,5];
    for c=1:length(conditions)
        if any(c==cntrlcond)
@@ -34,9 +36,9 @@ for s = 1:length(folderNames)
        end
        curIdx = respData(:,1,s) == conditions(c);
        TrialIdx(:,s,c) = respData(curIdx,2,s) == corrResp;
-       respData(~misIdx(:,s) & curIdx,4,s) = respData(~misIdx(:,s) & curIdx,2,s) == corrResp;
-       percMis(c,s) = length(find(misIdx(curIdx,s)))./length(find(curIdx));
-       aveAcc(c,s) = (sum(respData(~misIdx(:,s) & curIdx,2,s) == corrResp)+0.5)./(length(respData(~misIdx(:,s) & curIdx,2,s) == corrResp)+1);
+       respData(~misIdx(:,s) & curIdx,4,s) = respData(~misIdx(:,s) & curIdx,2,s) == corrResp; % Calculate accuracy
+       percMis(c,s) = length(find(misIdx(curIdx,s)))./length(find(curIdx)); % Calculate percent missing
+       aveAcc(c,s) = (sum(respData(~misIdx(:,s) & curIdx,2,s) == corrResp)+0.5)./(length(respData(~misIdx(:,s) & curIdx,2,s) == corrResp)+1); % average accuracy across trials
    end
 end
 %Put into variables, calculate dprime, FA, TP
@@ -45,16 +47,16 @@ end
 % Experimental Conditions
 % Reorder aveAcc, HrFa, and Zsc so
 % that the false alrm conditions are conds 5 and 6 and then I calculate
-% dPr and Bias using a simpler loop reorder
-% so that the order is 6v5 6v9 8v9 8v5
+% dPr and Bias using a simpler loop 
+% reorder so that the order is 6v5 6v9 8v9 8v5
 
 Carriers = [6 8];
 Oddballs = [5 9];
 NewOrder = [4 6 3 1 5 2];
-FAIdx = [5,6];
-HRmask = ~ismember(conditions,FAIdx);
+FAIdx = [5,6]; % False alarm
+HRmask = ~ismember(conditions,FAIdx); % Hit rate
 
-
+% Look at data
 mean(aveAcc,1)
 mean(aveAcc,2)
 
@@ -63,7 +65,7 @@ aveAcc = aveAcc(NewOrder,:);
 
 
 HrFa = aveAcc;
-HrFa(FAIdx,:) = 1 - HrFa(FAIdx,:);
+HrFa(FAIdx,:) = 1 - HrFa(FAIdx,:); % FA = 1-accuracy
 Zsc = norminv(HrFa);
 dPr = zeros(sum(HRmask),length(folderNames));
 bias = zeros(sum(HRmask),length(folderNames));
@@ -111,7 +113,8 @@ plot([3 4], avgdPr(3:4),'.','markersize',20,'Color','b');
 errorbar([3 4],avgdPr(3:4),errdPr(3:4),'Color','b');
 ylabel('dPrime');
 xlabel('Stim Pairs');
-set(gca,gcaOpts{:},'xtick',[1,2,3,4],'xticklabel',condLabels, 'xlim',[0.5,4.5],'box','off');
+yMax = max(max(avgdPr));
+set(gca,gcaOpts{:},'xtick',[1,2,3,4],'xticklabel',condLabels, 'xlim',[0.5,4.5],'ylim',[0-0.5,yMax+0.5],'box','off');
 hold off
 export_fig(sprintf('%s/Exp2_avg_dPrime.pdf',figureLocation),'-pdf','-transparent',gcf);
 
@@ -123,7 +126,9 @@ plot([3 4], avgBias(3:4),'.','markersize',20,'Color','b');
 errorbar([3 4],avgBias(3:4),errBias(3:4),'Color','b');
 ylabel('Bias');
 xlabel('Stim Pairs');
-set(gca,gcaOpts{:},'xtick',[1,2,3,4],'xticklabel',condLabels, 'xlim',[0.5,4.5],'box','off');
+yMin = min(min(avgBias));
+yMax = max(max(avgBias));
+set(gca,gcaOpts{:},'xtick',[1,2,3,4],'xticklabel',condLabels, 'xlim',[0.5,4.5],'ylim',[yMin-0.5,yMax+0.5],'box','off');
 hold off
 export_fig(sprintf('%s/Exp2_avg_Bias.pdf',figureLocation),'-pdf','-transparent',gcf);
 
