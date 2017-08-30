@@ -55,8 +55,8 @@ end
 %For plotting
 figureLocation = sprintf('%s/figures',dataLocation);
 lWidth = 2;
-freqLabels = {'1:6Hz','0.75:3.75Hz','0.5:3Hz'};
-gcaOpts = {'box','off','fontname','Arial','linewidth',lWidth};
+freqLabels = {'6:1Hz','3.75:0.75Hz','3:0.5Hz'};
+gcaOpts = {'box','off','fontname','Helvetica','linewidth',lWidth,'box','off'};
 avgdPr = mean(dPr,2);
 avgBias = mean(bias,2);
 errdPr = std(dPr,[],2)./sqrt(length(folderNames)-1);
@@ -68,9 +68,9 @@ hold on
 errorbar(avgdPr,errdPr,'Color','b');
 ylabel('dPrime');
 xlabel('Freq pairs');
-set(gca,gcaOpts{:},'xtick',[1,2,3],'xticklabel',freqLabels, 'xlim',[0.5,3.5]);
+set(gca,gcaOpts{:},'xtick',[1,2,3],'xticklabel',freqLabels, 'xlim',[0.5,3.5],'box','off');
 hold off
-export_fig(sprintf('%s/avg_dPrime.pdf',figureLocation));
+export_fig(sprintf('%s/avg_dPrime.pdf',figureLocation),'-pdf','-transparent',gcf);
 
 %Bias
 plot([1 2 3], avgBias,'.','markersize',20,'Color','b');
@@ -78,16 +78,16 @@ hold on
 errorbar(avgBias,errBias,'Color','b');
 ylabel('Bias');
 xlabel('Freq pairs');
-set(gca,gcaOpts{:},'xtick',[1,2,3],'xticklabel',freqLabels, 'xlim',[0.5,3.5]);
+set(gca,gcaOpts{:},'xtick',[1,2,3],'xticklabel',freqLabels, 'xlim',[0.5,3.5],'box','off');
 hold off
-export_fig(sprintf('%s/avg_Bias.pdf',figureLocation));
+export_fig(sprintf('%s/avg_Bias.pdf',figureLocation),'-pdf','-transparent',gcf);
 
 % Individual subject plot
 cBrewer = load('colorBrewer');
 colors = cBrewer.rgb20(round(linspace(1,20,length(IDs))),:);
 yFigs = 2;% dPrime or Bias
 xFigs = 3;% Freq pairs
-titleStr = {'1:6Hz','0.75:3.75Hz','0.5:3Hz'};
+titleStr = {'6:1Hz','3.75:0.75Hz','3:0.5Hz'};
 titleStr2 = {'dPrime', 'Bias'};
 
 for f=1:3 % Freq pairs
@@ -112,7 +112,7 @@ for f=1:3 % Freq pairs
         hline.LineWidth = 2;
         yMin = min(dataToPlot);
         yMax = max(dataToPlot);
-        set(gca,gcaOpts{:},'xtick',[1:length(IDs)],'xticklabel',IDs, 'xlim',[0.5,length(IDs)+0.5],'ylim',[0-0.5,yMax+0.5]);
+        set(gca,gcaOpts{:},'xtick',[1:length(IDs)],'xticklabel',IDs, 'xlim',[0.5,length(IDs)+0.5],'ylim',[0-0.5,yMax+0.5],'box','off');
         xtickangle(90);
         if c == 1
             title(titleStr{f})
@@ -127,7 +127,32 @@ for f=1:3 % Freq pairs
         hold off
     end
 end
-export_fig(sprintf('%s/SubjPerformance.pdf',figureLocation));
+export_fig(sprintf('%s/SubjPerformance.pdf',figureLocation),'-pdf','-transparent',gcf);
 
-    
-       
+% Paired tTests dPr
+% dPr(1,:); %6Hz-1Hz
+% dPr(2,:); %3.75Hz-1.75Hz
+% dPr(3,:); %3Hz-0.5Hz
+test_order = [[1 2];[1,3];[2,3]];
+for freq=1:3
+    x = test_order(freq,1);
+    y = test_order(freq,2);
+    [h,p,ci,stats] = ttest(dPr(x,:),dPr(y,:));
+    dPr_res.h(freq) = h;
+    dPr_res.p(freq) = p;
+    dPr_res.stats(freq) = stats;
+end
+
+% Paired tTests Bias
+% bias(1,:); %6Hz-1Hz
+% bias(2,:); %3.75Hz-1.75Hz
+% bias(3,:); %3Hz-0.5Hz
+test_order = [[1 2];[1,3];[2,3]];
+for freq=1:3
+    x = test_order(freq,1);
+    y = test_order(freq,2);
+    [h,p,ci,stats] = ttest(bias(x,:),bias(y,:));
+    bias_res.h(freq) = h;
+    bias_res.p(freq) = p;
+    bias_res.stats(freq) = stats;
+end

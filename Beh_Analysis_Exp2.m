@@ -97,7 +97,7 @@ save(filename,'TrialIdx');
 figureLocation = sprintf('%s/figures',dataLocation);
 lWidth = 2;
 condLabels = {'6v5','6v9','8v9','8v5'};
-gcaOpts = {'box','off','fontname','Arial','linewidth',lWidth};
+gcaOpts = {'box','off','fontname','Helvetica','linewidth',lWidth,'box','off'};
 avgdPr = mean(dPr,2);
 avgBias = mean(bias,2);
 errdPr = std(dPr,[],2)./sqrt(length(folderNames)-1);
@@ -111,9 +111,9 @@ plot([3 4], avgdPr(3:4),'.','markersize',20,'Color','b');
 errorbar([3 4],avgdPr(3:4),errdPr(3:4),'Color','b');
 ylabel('dPrime');
 xlabel('Stim Pairs');
-set(gca,gcaOpts{:},'xtick',[1,2,3,4],'xticklabel',condLabels, 'xlim',[0.5,4.5]);
+set(gca,gcaOpts{:},'xtick',[1,2,3,4],'xticklabel',condLabels, 'xlim',[0.5,4.5],'box','off');
 hold off
-export_fig(sprintf('%s/Exp2_avg_dPrime.pdf',figureLocation));
+export_fig(sprintf('%s/Exp2_avg_dPrime.pdf',figureLocation),'-pdf','-transparent',gcf);
 
 %Bias
 plot([1 2], avgBias(1:2),'.','markersize',20,'Color','b');
@@ -123,9 +123,9 @@ plot([3 4], avgBias(3:4),'.','markersize',20,'Color','b');
 errorbar([3 4],avgBias(3:4),errBias(3:4),'Color','b');
 ylabel('Bias');
 xlabel('Stim Pairs');
-set(gca,gcaOpts{:},'xtick',[1,2,3,4],'xticklabel',condLabels, 'xlim',[0.5,4.5]);
+set(gca,gcaOpts{:},'xtick',[1,2,3,4],'xticklabel',condLabels, 'xlim',[0.5,4.5],'box','off');
 hold off
-export_fig(sprintf('%s/Exp2_avg_Bias.pdf',figureLocation));
+export_fig(sprintf('%s/Exp2_avg_Bias.pdf',figureLocation),'-pdf','-transparent',gcf);
 
 
 %Individual subject plot
@@ -160,7 +160,7 @@ for f=1:4 % Stim pairs
         hline.Color = 'k';
         hline.LineWidth = 2;
         
-        set(gca,gcaOpts{:},'xtick',[1:length(IDs)],'xticklabel',IDs, 'xlim',[0.5,length(IDs)+0.5],'ylim',[yMin-0.5,yMax+0.5]);
+        set(gca,gcaOpts{:},'xtick',[1:length(IDs)],'xticklabel',IDs, 'xlim',[0.5,length(IDs)+0.5],'ylim',[yMin-0.5,yMax+0.5],'box','off');
         xtickangle(90);
         if c == 1
             title(titleStr{f})
@@ -180,7 +180,52 @@ figPos = get(gcf,'pos');
 figPos(4) = 14;
 figPos(3) = 28;
 set(gcf,'pos',figPos);
-export_fig(sprintf('%s/Exp2_SubjPerformance.pdf',figureLocation));
+export_fig(sprintf('%s/Exp2_SubjPerformance.pdf',figureLocation),'-pdf','-transparent',gcf);
+
+% 2-Way repeated measures ANOVA dPR
+n = numel(dPr);
+Y = reshape(dPr,n,1);
+S = reshape(repmat(1:size(dPr,2),size(dPr,1),1),n,1);
+
+F1 = reshape(repmat([1 2 1 2]',1,size(dPr,2)),n,1); % Number pair (5-8 vs 6-9)
+F2 = reshape(repmat([1 1 2 2]',1,size(dPr,2)),n,1); % Ascending/Descending
+FACTNAMES = {'direction','number pair'};
+
+res_dP = rm_anova2(Y,S,F1,F2,FACTNAMES);
+
+% post-hoc Ttest
+test_order = [[1 3];[2,4]]; %6:5 Vs 8:9; 8:5 Vs 6:9
+for freq=1:2
+    x = test_order(freq,1);
+    y = test_order(freq,2);
+    [h,p,ci,stats] = ttest(dPr(x,:),dPr(y,:));
+    dP_res.h(freq) = h;
+    dP_res.p(freq) = p;
+    dP_res.stats(freq) = stats;
+end
+
+
+% 2-Way repeated measures ANOVA dPR
+n = numel(bias);
+Y = reshape(bias,n,1);
+S = reshape(repmat(1:size(bias,2),size(bias,1),1),n,1);
+
+F1 = reshape(repmat([1 2 1 2]',1,size(bias,2)),n,1); % Number pair (5-8 vs 6-9)
+F2 = reshape(repmat([1 1 2 2]',1,size(bias,2)),n,1); % Ascending/Descending
+FACTNAMES = {'direction','number pair'};
+
+res_bias = rm_anova2(Y,S,F1,F2,FACTNAMES);
+
+% post-hoc Ttest
+test_order = [[1 3];[2,4]]; %6:5 Vs 8:9; 8:5 Vs 6:9
+for freq=1:2
+    x = test_order(freq,1);
+    y = test_order(freq,2);
+    [h,p,ci,stats] = ttest(bias(x,:),bias(y,:));
+    bias_res.h(freq) = h;
+    bias_res.p(freq) = p;
+    bias_res.stats(freq) = stats;
+end
 
     
        

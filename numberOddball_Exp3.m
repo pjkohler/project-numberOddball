@@ -237,8 +237,10 @@ function numberOddball_Exp3(varargin)
             tVs0Stat(freqIdx,1:5,:,c,rcaIdx) = tempDataStrct.tSqrdVal;
             tVs0Pval(freqIdx,1:5,:,c,rcaIdx) = tempDataStrct.tSqrdP;
             tVs0Sig(freqIdx,1:5,:,c,rcaIdx) = tempDataStrct.tSqrdSig;
-            errLB(freqIdx,1:5,:,c,rcaIdx)   = squeeze( tempDataStrct.ampBins-tempDataStrct.ampErrBins(:,:,:,:,1) );
-            errUB(freqIdx,1:5,:,c,rcaIdx)   = squeeze( tempDataStrct.ampErrBins(:,:,:,:,2)-tempDataStrct.ampBins );
+%             errLB(freqIdx,1:5,:,c,rcaIdx)   = squeeze( tempDataStrct.ampBins-tempDataStrct.ampErrBins(:,:,:,:,1) );
+%             errUB(freqIdx,1:5,:,c,rcaIdx)   = squeeze( tempDataStrct.ampErrBins(:,:,:,:,2)+tempDataStrct.ampBins );
+            errLB(freqIdx,1:5,:,c,rcaIdx)   = squeeze( tempDataStrct.ampErrBins(:,:,:,:,1) );
+            errUB(freqIdx,1:5,:,c,rcaIdx)   = squeeze( tempDataStrct.ampErrBins(:,:,:,:,2) );
             tempNoiseStrct1 = aggregateData(curRCA.noiseData.lowerSideBand,curRCA.settings,keepConditions,errorType,opt.trialError);
             tempNoiseStrct2 = aggregateData(curRCA.noiseData.higherSideBand,curRCA.settings,keepConditions,errorType,opt.trialError);
             [snrTmp,noiseTmp] = computeSnr(tempDataStrct,tempNoiseStrct1,tempNoiseStrct2,false);
@@ -253,8 +255,10 @@ function numberOddball_Exp3(varargin)
             zSNRVals(freqIdx,6,:,:,c,rcaIdx) = permute(squeeze(tempDataStrct.zSNR.subj),[1,3,2]);
             realVals(freqIdx,6,:,c,rcaIdx) = squeeze( tempDataStrct.realBins );
             imagVals(freqIdx,6,:,c,rcaIdx) = squeeze( tempDataStrct.imagBins );
-            errLB(freqIdx,6,:,c,rcaIdx) = squeeze( tempDataStrct.ampBins-tempDataStrct.ampErrBins(:,:,:,:,1) );
-            errUB(freqIdx,6,:,c,rcaIdx) = squeeze( tempDataStrct.ampErrBins(:,:,:,:,2)-tempDataStrct.ampBins );
+%             errLB(freqIdx,6,:,c,rcaIdx) = squeeze( tempDataStrct.ampBins-tempDataStrct.ampErrBins(:,:,:,:,1) );
+%             errUB(freqIdx,6,:,c,rcaIdx) = squeeze( tempDataStrct.ampErrBins(:,:,:,:,2)+tempDataStrct.ampBins );
+            errLB(freqIdx,6,:,c,rcaIdx) = squeeze( tempDataStrct.ampErrBins(:,:,:,:,1) );
+            errUB(freqIdx,6,:,c,rcaIdx) = squeeze( tempDataStrct.ampErrBins(:,:,:,:,2) );
             tVs0Stat(freqIdx,6,:,c,rcaIdx) = tempDataStrct.tSqrdVal;
             tVs0Pval(freqIdx,6,:,c,rcaIdx) = tempDataStrct.tSqrdP;
             tVs0Sig(freqIdx,6,:,c,rcaIdx) = tempDataStrct.tSqrdSig;
@@ -379,7 +383,7 @@ function numberOddball_Exp3(varargin)
     binVals = fullRCA(1).settings.freqLabels';
     clear egiH;
     
-    numConds = size(newOrders(1,:),2);
+    numConds = size(newOrders(1,:),2); %Number of conditions on same plot
     cBrewer = load('colorBrewer');
     boldColors = cBrewer.rgb20([9,5,3,13],:);
     weakColors = cBrewer.rgb20([10,6,4,14],:);
@@ -559,7 +563,7 @@ function numberOddball_Exp3(varargin)
                         errorbar(xVals(c,:),yVals,errLB(curIdx,r,curOrder(c),1,opt.plotSplit+1),errUB(curIdx,r,curOrder(c),1,opt.plotSplit+1),'.','Color','k','LineWidth',lWidth,'marker','none');
                     end
                     
-                    yMax = ceil(max(curRange(:)));
+                    yMax = ceil(max(curRange(:))+0.5);
                     zeroSig = tVs0Pval(curIdx,r,curOrder(c),1,opt.plotSplit+1)<0.05;
                     
                     barH(c) = bar(xVals(c,:),yVals,'BarWidth',barWidth,'edgecolor','none','facecolor',boldColors(c,:));
