@@ -49,8 +49,8 @@ function numberOddball_Exp1(varargin)
             );
 
     %% VARIABLES THAT CAN BE CHANGED
-    topFolder = '/Volumes/Denali_4D2/kohler/EEG_EXP/DATA/numeroOddball';
-    doExp = 1;
+    topFolder = '/Volumes/Denali_DATA1/kohler/EEG_EXP/DATA/numeroOddball';
+    doExp = 3;
 
     %% IDENTIFY DATA LOCATION
     dataLocation = sprintf('%s/Experiment%.0d',topFolder,doExp);

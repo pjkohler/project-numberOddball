@@ -36,18 +36,18 @@ function numberOddball_Exp2(varargin)
     %% ADD PATHS
     close all;
     if ~exist('codeFolder','var')
-        codeFolder = '/Users/kohler/code';
-        rcaCodePath = sprintf('%s/git/rcaBase',codeFolder);
-        addpath(genpath(rcaCodePath));
-        addpath(genpath(sprintf('%s/git/mrC',codeFolder)));
-        addpath(genpath(sprintf('%s/git/schlegel/matlab_lib',codeFolder)));
+        code_folder = '/Users/kohler/code';
+        addpath(genpath(sprintf('%s/git/rcaBase',code_folder)));
+        addpath(genpath(sprintf('%s/git/mrC',code_folder)));
+        addpath(genpath(sprintf('%s/git/schlegel/matlab_lib',code_folder)));
+        addpath(genpath(sprintf('%s/git/export_fig',code_folder)));
     else
     end
     setenv('DYLD_LIBRARY_PATH','')
     
     %% PARSE ARGS
     opt	= ParseArgs(varargin,...
-            'chanToCompare'		, 75, ...
+            'chanToCompare'	, 75, ...
             'foldersToUse', [], ...
             'launchRCA', false, ...
             'trialError', false, ...
@@ -60,304 +60,256 @@ function numberOddball_Exp2(varargin)
             );
 
     %% VARIABLES THAT CAN BE CHANGED
-    topFolder = '/Volumes/Denali_4D2/kohler/EEG_EXP/DATA/numeroOddball';
-    doExp = 2;
+    top_folder = '/Volumes/Denali_DATA1/kohler/EEG_EXP/DATA/numeroOddball';
+    do_exp = 2;
 
     %% IDENTIFY DATA LOCATION
-    dataLocation = sprintf('%s/Experiment%.0d',topFolder,doExp);    
-    figureLocation = sprintf('%s/Experiment%.0d/figures',topFolder,doExp);
-    if ~exist(figureLocation,'dir')
-        mkdir(figureLocation);
+    data_location = sprintf('%s/Experiment%.0d',top_folder,do_exp);    
+    fig_location = sprintf('%s/Experiment%.0d/figures',top_folder,do_exp);
+    if ~exist(fig_location,'dir')
+        mkdir(fig_location);
     else
     end
-
-    folderNames=subfolders(sprintf('%s/*20*',dataLocation),1);
+    folder_names=subfolders(sprintf('%s/*20*',data_location),1);
     if ~isempty(opt.foldersToUse)
-        folderNames = folderNames(opt.foldersToUse);
+        folder_names = folder_names(opt.foldersToUse);
     else
     end
-    numSubs = size(folderNames,1);
     % and string for saving the data
-    saveStr = datestr(clock,26);
-    saveStr(strfind(saveStr,'/')) ='';
-    saveFileName = sprintf('%s/rcaData_%s.mat',dataLocation, saveStr); % include the date as a string;
+    save_str = datestr(clock,26);
+    save_str(strfind(save_str,'/')) ='';
+    save_name = sprintf('%s/rcaData_%s.mat',data_location, save_str); % include the date as a string;
 
     %% SETUP INPUTS
-    binsToUse=0; % use average bin, the zeroeth one
-    freqsToUse= 1:8; % indices of frequencies to include in analysis (the values must be present in the frequency column of all DFT/RLS exports)
-    condsToUse = 1:6;
-    trainData = opt.trainData;
-    if trainData == 1
-        condsToUse = 4:6;
-    elseif trainData == 2
-        condsToUse = 1:3;
+    use_bins = 0; % use average bin, the zeroeth one
+    use_freqs = 1:8; % indices of frequencies to include in analysis (the values must be present in the frequency column of all DFT/RLS exports)
+   
+    train_data = opt.trainData;
+    if train_data == 0
+        use_conds = 1:6;
+        %Reorder to make plotting easier
+        carriers = [6, 8];
+        new_orders = [[5 4 6]; [2 3 1]]; %6v6,6v5,6v9; 8v8,8v9,8v5
+    elseif train_data == 1
+        use_conds = 4:6;
+        new_orders = [2 1 3];
+        carriers = 6;
+        train_stim = 'train6';
+    elseif train_data == 2
+        use_conds = 1:3;
+        new_orders = [2 3 1];
+        carriers = 8;
+        train_stim = 'train8';
     end
-    trialsToUse = []; % subset of trials to use for analysis (if set to false or empty, all trials will be used)
-    nReg=7; % RCA regularization constant (7-9 are typical values, but see within-trial eigenvalue plot in rca output)
-    nComp=5; % number of RCs that you want to look at (3-5 are good values, but see across-trial eigenvalue plot in rca output)
-    nFreq = length(freqsToUse);
-    nCond = length(condsToUse);
-    dataType = 'RLS'; % can also be 'DFT' if you have DFT exports
-    rcPlotStyle = 'matchMaxSignsToRc1'; % not req'd. see 'help rcaRun', can be: 'matchMaxSignsToRc1' (default) or 'orig'
+    
+    use_trials = []; % subset of trials to use for analysis (if set to false or empty, all trials will be used)
+    n_reg = 10; % RCA regularization constant (7-9 are typical values, but see within-trial eigenvalue plot in rca output)
+    n_comp = 5; % number of RCs that you want to look at (3-5 are good values, but see across-trial eigenvalue plot in rca output)
+    n_freq = length(use_freqs);
+    n_cond = length(use_conds);
+    data_type = 'RLS'; % can also be 'DFT' if you have DFT exports
+    rc_plotstyle = 'matchMaxSignsToRc1'; % not req'd. see 'help rcaRun', can be: 'matchMaxSignsToRc1' (default) or 'orig'
 
     %% LAUNCH RCA OR LOAD DATA
-    % generate "filter" for comparison data
-    wComparison=zeros(128,1); wComparison(opt.chanToCompare)=1; 
 
     if ~opt.launchRCA % if users says analysis is not to be launched
-        tempFile = dir([dataLocation,'/rcaData_*.mat']);
-        saveFileName = fullfile(dataLocation,tempFile(end).name(1:(end-4))); % grab newest file and loose .mat suffix;
-        load(saveFileName);
+        temp_name = subfiles([data_location,'/rcaData_*.mat'],1);
+        temp_name = temp_name{end}; % grab newest file and loose .mat suffix;
+        load(temp_name);
     else
-        for f = 1:length(folderNames)
-            tempFolders = subfolders(folderNames{f},1);
-            pathNames{f} = sprintf('%s/Exp_TEXT_HCN_128_Avg',tempFolders{end});
+        % generate "filter" for comparison data
+        w_comparison = zeros(128,1); w_comparison(opt.chanToCompare) = 1; 
+        % find text files
+        for f = 1:length(folder_names)
+            temp_folders = subfolders(folder_names{f},1);
+            temp_folders = temp_folders(~ismember(temp_folders, [folder_names{f},'/not_time_corrected']));
+            temp_folders = temp_folders(~ismember(temp_folders, [folder_names{f},'/time_corrected']));
+            path_names{f} = sprintf('%s/Exp_TEXT_HCN_128_Avg',temp_folders{end});
         end
-        if ~exist([saveFileName,'.mat'], 'file')
-            save(saveFileName,'*ToUse') % create file if it does not exist
+        if ~exist([save_name,'.mat'], 'file')
+            save(save_name,'use_*') % create file if it does not exist
         else
-            save(saveFileName,'*ToUse','-append') % otherwise append
+            save(save_name,'use_*','-append') % otherwise append
         end
-        for c = 1:(length(condsToUse)/length(condsToUse)) % This is not doing anything but stays in case we want to loop and separate data differently
-            curCond = condsToUse;
-            % full RCA, use all harmonics 1F1, 2F1, 1F2 and 2F2
-            if c==1
-                fullRCA(c) = rcaSweep(pathNames,binsToUse,freqsToUse,curCond,trialsToUse,nReg,nComp,dataType,opt.chanToCompare,[],rcPlotStyle,opt.forceSourceData); % TRUE
-            else
-                % since this is just a subset of the previous RCA, set forceSourceData to false
-                fullRCA(c) = rcaSweep(pathNames,binsToUse,freqsToUse,curCond,trialsToUse,nReg,nComp,dataType,opt.chanToCompare,[],rcPlotStyle,false);
-            end
-            rcaH = grabCovFig(gcf);
-            export_fig(sprintf('%s/fullRCA_cond%.0d&%.0d_cov.pdf',figureLocation,curCond(1),curCond(2)),'-pdf','-transparent',rcaH);
-            close all;
-            % create axxRCA
-            fullW = [fullRCA(c).W, wComparison];
-            if c==1
-                axxRCA = axxRCAmake(folderNames,fullW,curCond,c,opt.axxType); % create struct
-            else
-                axxRCA = axxRCAmake(folderNames,fullW,curCond,c,opt.axxType,axxRCA);
-            end
-            % oddball RCA, first two frequencies 1F1 and 2F1
-            % since this is just a subset of the previous RCA, set forceSourceData to false
-            oddRCA(c) = rcaSweep(pathNames,binsToUse,freqsToUse(1:end/2),curCond,trialsToUse,nReg,nComp,dataType,opt.chanToCompare,[],rcPlotStyle,false);
-            rcaH = grabCovFig(gcf);
-            export_fig(sprintf('%s/oddRCA_cond%.0d&%.0d_cov.pdf',figureLocation,curCond(1),curCond(2)),'-pdf','-transparent',rcaH);
-            close all;
-            % carrier RCA, last two frequencies 1F2 and 2F2
-            carrierRCA(c) = rcaSweep(pathNames,binsToUse,freqsToUse(end/2+1:end),curCond,trialsToUse,nReg,nComp,dataType,opt.chanToCompare,[],rcPlotStyle,false);
-            rcaH = grabCovFig(gcf);
-            export_fig(sprintf('%s/carrierRCA_cond%.0d&%.0d_cov.pdf',figureLocation,curCond(1),curCond(2)),'-pdf','-transparent',rcaH);
-            oddW = [oddRCA(c).W, wComparison];
-            carrierW = [carrierRCA(c).W, wComparison];
-            if c==1
-                axxRCAodd = axxRCAmake(folderNames,oddW,curCond,c,opt.axxType); % create struct
-                axxRCAcarrier = axxRCAmake(folderNames,carrierW,curCond,c,opt.axxType); % create struct
-            else
-                axxRCAodd = axxRCAmake(folderNames,oddW,curCond,c,opt.axxType,axxRCAodd);
-                axxRCAcarrier = axxRCAmake(folderNames,carrierW,curCond,c,opt.axxType,axxRCAcarrier);
-            end
-            close all;
-        end
-        save(saveFileName,'fullRCA','oddRCA','carrierRCA','axxRCA*','-append')
-    end
-    %% rca replaces NaNs with zeroes, correct this
-    nanDims = [1,2]; % if all time points are zero, or all channels are zero
-    structVars = {'data','noiseData','comparisonData','comparisonNoiseData'};
-    noiseVars = {'lowerSideBand','higherSideBand'};
-    for z=1:length(structVars)
-        if strfind(lower(structVars{z}),'noise')
-            for n = 1:length(noiseVars)
-                for f=1:length(fullRCA)
-                    fullRCA(f).(structVars{z}).(noiseVars{n}) = cellfun(@(x) Zero2NaN(x,nanDims),fullRCA(f).(structVars{z}).(noiseVars{n}),'uni',false);
-                    oddRCA(f).(structVars{z}).(noiseVars{n}) = cellfun(@(x) Zero2NaN(x,nanDims),oddRCA(f).(structVars{z}).(noiseVars{n}),'uni',false);
-                    carrierRCA(f).(structVars{z}).(noiseVars{n}) = cellfun(@(x) Zero2NaN(x,nanDims),carrierRCA(f).(structVars{z}).(noiseVars{n}),'uni',false);
-                end
-            end
-        else
-            for f=1:length(fullRCA)
-                fullRCA(f).(structVars{z}) = cellfun(@(x) Zero2NaN(x,nanDims),fullRCA(f).(structVars{z}),'uni',false);
-                oddRCA(f).(structVars{z}) = cellfun(@(x) Zero2NaN(x,nanDims),oddRCA(f).(structVars{z}),'uni',false);
-                carrierRCA(f).(structVars{z}) = cellfun(@(x) Zero2NaN(x,nanDims),carrierRCA(f).(structVars{z}),'uni',false);
-            end
-        end
+        % full RCA, use all harmonics 1F1, 2F1, 1F2 and 2F2
+        rca_full = rcaSweep(path_names, use_bins, use_freqs, use_conds, use_trials, n_reg, n_comp, data_type, opt.chanToCompare, [], rc_plotstyle, opt.forceSourceData); % TRUE
+
+        rca_h = grabCovFig(gcf);
+        export_fig(sprintf('%s/full_rca_cond%s_cov.pdf',fig_location,sprintf('%.0d',use_conds)),'-pdf','-transparent',rca_h);
+        close all;
+        % create axxRCA
+        full_w = [rca_full(1).W, w_comparison];
+        axx_rca_full = axxRCAmake(path_names, full_w, use_conds, opt.axxType); % create struct
+        
+        % oddball RCA, first two frequencies 1F1 and 2F1
+        % since this is just a subset of the previous RCA, set forceSourceData to false
+        rca_odd = rcaSweep(path_names, use_bins, use_freqs(1:end/2), use_conds, use_trials, n_reg, n_comp, data_type, opt.chanToCompare,[], rc_plotstyle, false);
+        rca_h = grabCovFig(gcf);
+        export_fig(sprintf('%s/oddRCA_cond%s_cov.pdf', fig_location, sprintf('%.0d',use_conds)),'-pdf','-transparent',rca_h);
+        close all;
+        odd_w = [rca_odd(1).W, w_comparison];
+
+        % carrier RCA, last two frequencies 1F2 and 2F2
+        rca_carr = rcaSweep(path_names, use_bins, use_freqs(end/2+1:end), use_conds, use_trials, n_reg, n_comp, data_type, opt.chanToCompare,[], rc_plotstyle, false);
+        rca_h = grabCovFig(gcf);
+        export_fig(sprintf('%s/carrierRCA_cond%s_cov.pdf', fig_location, sprintf('%.0d',use_conds)),'-pdf','-transparent',rca_h);
+        
+        carr_w = [rca_carr(1).W, w_comparison];
+        
+        axx_rca_odd = axxRCAmake(path_names, odd_w, use_conds, opt.axxType); % create struct
+        axx_rca_carr = axxRCAmake(path_names, carr_w, use_conds, opt.axxType); % create struct
+
+        close all;
+        save(save_name,'rca_full', 'rca_odd', 'rca_carr', 'axx_rca_*', '-append')
     end
     
     %% NOW SPLIT BASED ON BEHAVIOR
-    if opt.behSplit
-        
+    if opt.behSplit 
         % load trial idx, and convert it to a more manageable variable
-        load(sprintf('%s/trialIdx.mat',dataLocation));
+        load(sprintf('%s/trialIdx.mat',data_location));
         if ~iscell(TrialIdx)
             TrialIdx = permute(TrialIdx,[1,3,2]);
             tSize = size(TrialIdx);
-            trialIdx = cell(size(fullRCA.data));
-            if any(size(trialIdx) ~= tSize(2:end));
+            trialIdx = cell(size(rca_full(1).data));
+            if any(size(trialIdx) ~= tSize(2:end))
                 error('mismatch between index and data');
             else
             end
-            for q = 1 : prod(tSize(2:end))
+            for q = 1 : prod(tSize(2:end)) 
                 trialIdx{q} = TrialIdx(:,q);
             end
             clear TrialIdx;
         else
         end
     
-        [fullRCA,fullRCA_incorrect] = splitRCA(fullRCA, trialIdx);
-        [oddRCA,oddRCA_incorrect] = splitRCA(oddRCA, trialIdx);
-        [carrierRCA,carrierRCA_incorrect] = splitRCA(carrierRCA, trialIdx);
+        [rca_full, rca_full_incorrect] = splitRCA(rca_full, trialIdx);
+        [rca_odd, rca_odd_incorrect] = splitRCA(rca_odd, trialIdx);
+        [rca_carr, rca_carr_incorrect] = splitRCA(rca_carr, trialIdx);
     end
-
+    
     %% COMPUTE VALUES FOR PLOTTING
-    % AE RCA
+
     keepConditions = true;
     errorType = 'SEM';
+    doNR = false(1,6,6); % 1 freq, 5 RCs, 6 conditions
     for d = 1:3 % compute values for both full RCA and merge the split oddball/carrier
-        for c=length(fullRCA)
-            if d == 1
-                curRCA = fullRCA(c);
-                freqIdx = freqsToUse;
-                rcaIdx = 1;
-                curAxxRCA = axxRCA(c);
-            elseif d == 2
-                curRCA = oddRCA(c);
-                freqIdx = freqsToUse(1:end/2);
-                rcaIdx = 2;
-                curAxxRCA = axxRCAodd(c);
-            else
-                curRCA = carrierRCA(c);
-                freqIdx = freqsToUse(end/2+1:end);
-                rcaIdx = 2; % we want to store odd and carrier together
-                curAxxRCA = axxRCAcarrier(c);
+        if d == 1
+            curRCA = rca_full;
+            curAxxRCA = axx_rca_full;
+        elseif d == 2
+            curRCA = rca_odd;
+            curAxxRCA = axx_rca_odd;
+        else
+            curRCA = rca_carr;
+            curAxxRCA = axx_rca_carr;
+        end
+        for c = 1:size(curRCA,1)
+            for f = 1:size(curRCA,2)
+                fprintf('\n ... freq no. %0.0f ...\n',f);
+                rcStruct = aggregateData(curRCA(c,f),keepConditions,errorType,opt.trialError,doNR);
+                % RC
+                curRCA(c,f).stats.Amp = squeeze(rcStruct.ampBins(1,:,:,:));
+                curRCA(c,f).stats.SubjectAmp = squeeze(rcStruct.subjectAmp(1,:,:,:,:));
+                curRCA(c,f).stats.ErrLB = squeeze(rcStruct.ampErrBins(1,:,:,:,1));
+                curRCA(c,f).stats.ErrUB = squeeze(rcStruct.ampErrBins(1,:,:,:,2));
+                curRCA(c,f).stats.NoiseAmp = squeeze(rcStruct.ampNoiseBins(1,:,:,:));
+                curRCA(c,f).stats.SubjectNoiseAmp = squeeze(rcStruct.subjectAmpNoise(1,:,:,:,:));
+                % within group t-values
+                curRCA(c,f).stats.tSqrdP = squeeze(rcStruct.tSqrdP(1,:,:,:));
+                curRCA(c,f).stats.tSqrdSig = squeeze(rcStruct.tSqrdSig(1,:,:,:));
+                curRCA(c,f).stats.tSqrdVal = squeeze(rcStruct.tSqrdVal(1,:,:,:));
             end
-            [tempDataStrct,tempReal,tempImag] = aggregateData(curRCA.data,curRCA.settings,keepConditions,errorType,opt.trialError);
-            realSubjs(freqIdx,1:5,:,:,c,rcaIdx) = permute(tempReal,[2,3,5,4,1]);
-            imagSubjs(freqIdx,1:5,:,:,c,rcaIdx) = permute(tempImag,[2,3,5,4,1]);
-            ampVals(freqIdx,1:5,:,c,rcaIdx) = squeeze( tempDataStrct.ampBins );
-            zSNRVals(freqIdx,1:5,:,:,c,rcaIdx) = permute(squeeze(tempDataStrct.zSNR.subj),[1,2,4,3]);
-            tVs0Stat(freqIdx,1:5,:,c,rcaIdx) = tempDataStrct.tSqrdVal;
-            tVs0Pval(freqIdx,1:5,:,c,rcaIdx) = tempDataStrct.tSqrdP;
-            tVs0Sig(freqIdx,1:5,:,c,rcaIdx) = tempDataStrct.tSqrdSig;
-%             errLB(freqIdx,1:5,:,c,rcaIdx)   = squeeze( tempDataStrct.ampBins-tempDataStrct.ampErrBins(:,:,:,:,1) );
-%             errUB(freqIdx,1:5,:,c,rcaIdx)   = squeeze( tempDataStrct.ampErrBins(:,:,:,:,2)-tempDataStrct.ampBins );
-            errLB(freqIdx,1:5,:,c,rcaIdx)   = squeeze( tempDataStrct.ampErrBins(:,:,:,:,1) );
-            errUB(freqIdx,1:5,:,c,rcaIdx)   = squeeze( tempDataStrct.ampErrBins(:,:,:,:,2) );
-            tempNoiseStrct1 = aggregateData(curRCA.noiseData.lowerSideBand,curRCA.settings,keepConditions,errorType,opt.trialError);
-            tempNoiseStrct2 = aggregateData(curRCA.noiseData.higherSideBand,curRCA.settings,keepConditions,errorType,opt.trialError);
-            [snrTmp,noiseTmp] = computeSnr(tempDataStrct,tempNoiseStrct1,tempNoiseStrct2,false);
-            snrVals(freqIdx,1:5,:,c,rcaIdx) = squeeze(snrTmp);
-            noiseVals(freqIdx,1:5,:,c,rcaIdx) = squeeze(noiseTmp);
-            
-            % COMPARISON
-            [tempDataStrct,tempReal,tempImag] = aggregateData(curRCA.comparisonData,curRCA.settings,keepConditions,errorType,opt.trialError);
-            realSubjs(freqIdx,6,:,:,c,rcaIdx) = permute(tempReal,[2,3,5,4,1]);
-            imagSubjs(freqIdx,6,:,:,c,rcaIdx) = permute(tempImag,[2,3,5,4,1]);
-            ampVals(freqIdx,6,:,c,rcaIdx) = squeeze( tempDataStrct.ampBins );
-            zSNRVals(freqIdx,6,:,:,c,rcaIdx) = permute(squeeze(tempDataStrct.zSNR.subj),[1,3,2]);
-            realVals(freqIdx,6,:,c,rcaIdx) = squeeze( tempDataStrct.realBins );
-            imagVals(freqIdx,6,:,c,rcaIdx) = squeeze( tempDataStrct.imagBins );
-%             errLB(freqIdx,6,:,c,rcaIdx) = squeeze( tempDataStrct.ampBins-tempDataStrct.ampErrBins(:,:,:,:,1) );
-%             errUB(freqIdx,6,:,c,rcaIdx) = squeeze( tempDataStrct.ampErrBins(:,:,:,:,2)-tempDataStrct.ampBins );
-            errLB(freqIdx,6,:,c,rcaIdx) = squeeze( tempDataStrct.ampErrBins(:,:,:,:,1) );
-            errUB(freqIdx,6,:,c,rcaIdx) = squeeze( tempDataStrct.ampErrBins(:,:,:,:,2) );
-            tVs0Stat(freqIdx,6,:,c,rcaIdx) = tempDataStrct.tSqrdVal;
-            tVs0Pval(freqIdx,6,:,c,rcaIdx) = tempDataStrct.tSqrdP;
-            tVs0Sig(freqIdx,6,:,c,rcaIdx) = tempDataStrct.tSqrdSig;
-            tempNoiseStrct1 = aggregateData(curRCA.comparisonNoiseData.lowerSideBand,curRCA.settings,keepConditions,errorType,opt.trialError);
-            tempNoiseStrct2 = aggregateData(curRCA.comparisonNoiseData.higherSideBand,curRCA.settings,keepConditions,errorType,opt.trialError);
-            [snrTmp,noiseTmp] = computeSnr(tempDataStrct,tempNoiseStrct1,tempNoiseStrct2,false);
-            snrVals(freqIdx,6,:,c,rcaIdx) = squeeze(snrTmp);
-            noiseVals(freqIdx,6,:,c,rcaIdx) = squeeze(noiseTmp);
             % AxxRCA
-            nTps = size(curAxxRCA.Projected{1,1},1);
-            nRCA = size(curAxxRCA.Projected{1,1},2);
-            nSubjs = size(curAxxRCA.Projected,2);
-            nConds = size(curAxxRCA.Projected,1);
-            %projmatTest = reshape(cell2mat(cellfun(@ (x,y) cat(3,x,y), axxRCA(3).Projected(1,:),axxRCA(3).Projected(2,:),'Uni',false)),840,6,15,2)
-    %         tmp_axxProjMat(c).ProjMat = reshape(cell2mat(cellfun(@(x,y) cat(3,x,y),curAxxRCA.Projected(1,:),curAxxRCA.Projected(2,:),'Uni',false)),nTps,nRCA,nSubjs,2);
-            tmp_axxProjMat(c).ProjMat = reshape(cell2mat(curAxxRCA.Projected),nTps,nCond,nRCA,nSubjs);
-            tmp_axxProjMat(c).avg = nanmean(tmp_axxProjMat(c).ProjMat,4);
-            tmp_axxProjMat(c).std = nanstd(tmp_axxProjMat(c).ProjMat,0,4);
-            tmp_axxProjMat(c).sem = tmp_axxProjMat(c).std./sqrt(nSubjs);
+            n_tps = size(curAxxRCA(c).Projected{1,1},1);
+            n_rca = size(curAxxRCA(c).Projected{1,1},2);
+            n_subs = size(curAxxRCA(c).Projected,2);
+            curAxxRCA(c).ProjMat = reshape(cell2mat(curAxxRCA.Projected),n_tps,n_cond,n_rca,n_subs);
+            curAxxRCA(c).avg = nanmean(curAxxRCA(c).ProjMat,4);
+            curAxxRCA(c).std = nanstd(curAxxRCA(c).ProjMat,0,4);
+            curAxxRCA(c).sem = curAxxRCA(c).std./sqrt(n_subs);
         end
         if d == 1
-            axxProjMat = tmp_axxProjMat;
+            rca_full = curRCA;
+            axx_rca_full = curAxxRCA;
         elseif d == 2
-            axxProjMatOdd = tmp_axxProjMat;
+            rca_split = curRCA;
+            axx_rca_odd = curAxxRCA;
         else
-            axxProjMatCarrier = tmp_axxProjMat;
+            rca_split = cat(2, rca_split, curRCA);
+            axx_rca_carr = curAxxRCA;
         end
     end
-
+    % shut down parallel pool, which was used for fitting Naka-Rushton
+    delete(gcp('nocreate'));
+    clc;
+    
     %% STATS
-    for f = 1:max(freqsToUse)
-        for r = 1:6
-            for fPair = 1 %was 1:3 before
-                for rcType = 1:2
-                    for c = 1:nCond %was 2 before
-                        tempReal = squeeze(realSubjs(f,r,c,:,fPair,rcType));
-                        tempImag = squeeze(imagSubjs(f,r,c,:,fPair,rcType));
-                        if opt.trialError
-                            tempReal = nanmean(reshape(tempReal,[],numSubs),1)';
-                            tempImag = nanmean(reshape(tempImag,[],numSubs),1)';
-                        else
-                        end
-                        xyData(:,:,c) = [tempReal,tempImag];
-                        ampData(:,c) = sqrt(tempReal.^2+tempImag.^2);
-                        zSNRData(:,c) = squeeze(zSNRVals(f,r,c,:,fPair,rcType));
-                    end
-                    % think how to compute the appropriate pairs to do the
-                    % ttests and how they are stored
-                    contrastOrder = [[4 5];[6 5];[6 4];[3 2];[1 2];[1 3]];
-                    storeOrder = [[1 1];[2 1];[3 1];[1 2];[2 2];[3 2]];
-                    if trainData == 1
-                        contrastOrder = [[1 2];[3 2];[3 1]];
-                    elseif trainData == 2
-                        contrastOrder = [[3 2];[1 2];[1 3]];
-                    else
-                    end
-                    for t=1:size(contrastOrder,1) % number of tTests
-                        results = tSquaredFourierCoefs(xyData(:,:,contrastOrder(t,:)));
-                        tSig(f,r,fPair,rcType,storeOrder(t,1),storeOrder(t,2)) = results.H;
-                        tPval(f,r,fPair,rcType,storeOrder(t,1),storeOrder(t,2)) = results.pVal;
-                        tStat(f,r,fPair,rcType,storeOrder(t,1),storeOrder(t,2)) = results.tSqrd;
-                        % amplitude paired ttest
-                        [h,p,ci,ampResults] = ttest(ampData(:,contrastOrder(t,1)),ampData(:,contrastOrder(t,2)));
-                        AmptSig(f,r,fPair,rcType,storeOrder(t,1),storeOrder(t,2)) = h;
-                        AmptPval(f,r,fPair,rcType,storeOrder(t,1),storeOrder(t,2)) = p;
-                        AmptStat(f,r,fPair,rcType,storeOrder(t,1),storeOrder(t,2)) = ampResults.tstat;
-                        %zSNR paired ttest
-                        [h,p,ci,zSNRResults] = ttest(zSNRData(:,contrastOrder(t,1)),zSNRData(:,contrastOrder(t,2)));
-                        zSNRtSig(f,r,fPair,rcType,storeOrder(t,1),storeOrder(t,2)) = h;
-                        zSNRtPval(f,r,fPair,rcType,storeOrder(t,1),storeOrder(t,2)) = p;
-                        zSNRtStat(f,r,fPair,rcType,storeOrder(t,1),storeOrder(t,2)) = zSNRResults.tstat;
-                    end
-
+    % think how to compute the appropriate pairs to do the
+    % ttests and how they are stored
+    contrast_order = [[4 5];[6 5];[6 4];[3 2];[1 2];[1 3]];
+    store_order = [[1 1];[2 1];[3 1];[1 2];[2 2];[3 2]];
+    if train_data == 1
+        contrast_order = [[1 2];[3 2];[3 1]];
+    elseif train_data == 2
+        contrast_order = [[3 2];[1 2];[1 3]];
+    else
+    end
+    % get the data and run the between group tests
+    for f = 1:max(use_freqs)
+        for rcType = 1:2
+            if rcType == 1
+                [rca_data_real,rca_data_imag] = getRealImag(rca_full(f).data);
+                [comp_data_real,comp_data_imag] = getRealImag(rca_full(f).comparisonData);
+            else
+                if f > length(rca_odd)
+                    [rca_data_real,rca_data_imag] = getRealImag(rca_carr(f-length(rca_odd)).data);
+                    [comp_data_real,comp_data_imag] = getRealImag(rca_carr(f-length(rca_odd)).comparisonData);
+                else
+                    [rca_data_real,rca_data_imag] = getRealImag(rca_odd(f).data);
+                    [comp_data_real,comp_data_imag] = getRealImag(rca_odd(f).comparisonData);
+                end
+            end
+            % concatenate comparison and rca data
+            rca_data_real = cellfun(@(x,y) cat(2,x,y), rca_data_real, comp_data_real, 'uni', false);
+            rca_data_imag = cellfun(@(x,y) cat(2,x,y), rca_data_imag, comp_data_imag, 'uni', false);
+            
+            for r = 1:6
+                x_data = cell2mat(cellfun(@(x) squeeze(nanmean(x(1,r,:),3)), rca_data_real, 'uni', false));
+                y_data = cell2mat(cellfun(@(x) squeeze(nanmean(x(1,r,:),3)), rca_data_imag, 'uni', false));
+                xy_data = cat(2,permute(x_data,[2,3,1]),permute(y_data,[2,3,1]));
+                % compute vector mean amplitude, to get sign
+                temp_amp = sqrt(nanmean(x_data,2).^2+nanmean(y_data,2).^2);
+                for t=1:size(contrast_order,1) % number of tTests
+                    results = tSquaredFourierCoefs(squeeze(xy_data(:,:,contrast_order(t,:))));
+                    between_t2sig(f,r,rcType,store_order(t,1),store_order(t,2)) = results.H;
+                    between_t2p(f,r,rcType,store_order(t,1),store_order(t,2)) = results.pVal;
+                    between_t2Stat(f,r,rcType,store_order(t,1),store_order(t,2)) = results.tSqrd;
+                    between_sign(f,r,rcType,store_order(t,1),store_order(t,2)) = sign(temp_amp(contrast_order(t,1))-temp_amp(contrast_order(t,2)));
+%                     % amplitude paired ttest
+%                     [h,p,ci,ampResults] = ttest(ampData(:,contrast_order(t,1)),ampData(:,contrast_order(t,2)));
+%                     AmptSig(f,r,fPair,rcType,store_order(t,1),store_order(t,2)) = h;
+%                     AmptPval(f,r,fPair,rcType,store_order(t,1),store_order(t,2)) = p;
+%                     AmptStat(f,r,fPair,rcType,store_order(t,1),store_order(t,2)) = ampResults.tstat;
+%                     %zSNR paired ttest
+%                     [h,p,ci,zSNRResults] = ttest(zSNRData(:,contrast_order(t,1)),zSNRData(:,contrast_order(t,2)));
+%                     zSNRtSig(f,r,fPair,rcType,store_order(t,1),store_order(t,2)) = h;
+%                     zSNRtPval(f,r,fPair,rcType,store_order(t,1),store_order(t,2)) = p;
+%                     zSNRtStat(f,r,fPair,rcType,store_order(t,1),store_order(t,2)) = zSNRResults.tstat;
                 end
             end
         end
     end
 
+
     %% NEW PLOTTING
     close all
     plotSNR = false;
-    xVals = fullRCA(1).settings.freqsToUse; % frequencies are x-values
+    x_vals = rca_full(1).settings.freqLabels; % frequencies are x-values
     % Which dimension corresponds to what in axxProjMat
     tPtsIdx = 1;
     condsIdx = 2;
     RCAIdx = 3;
-    %Reorder to make plotting easier
-    carriers = [6, 8];
-    newOrders = [[5 4 6]; [2 3 1]]; %6v6,6v5,6v9; 8v8,8v9,8v5
-    if trainData == 1
-        newOrders = [[2 1 3]];
-        carriers = [6];
-        trainStim = 'train6';
-    elseif trainData == 2
-        newOrders = [[2 3 1]];
-        carriers = [8];
-        trainStim = 'train8';
-    else
-    end
+    
     % axxProjMat.avg = axxProjMat(:,newOrder,:);
     % axxProjMat.std = axxProjMat(:,newOrder,:);
     % axxProjMat.sem = axxProjMat(:,newOrder,:);
@@ -365,12 +317,12 @@ function numberOddball_Exp2(varargin)
     axxTicks = {[0 500 1000 1500 2000], [0 500 1000 1500 2000]};
     bgColors = [1,1,1; 0,0,0];
     subColors =  repmat(distinguishable_colors(4,bgColors),2,1);
-    subColors = subColors(1:6,:); %Change this from condsToUse for consistency in colors between plots
+    subColors = subColors(1:6,:); %Change this from use_conds for consistency in colors between plots
     lWidth = 1;
     fSize = 10;
     gcaOpts = {'tickdir','out','ticklength',[0.0200,0.0200],'box','off','fontsize',fSize,'fontname','Helvetica','linewidth',lWidth};
 
-    yFigs = nComp+1;
+    yFigs = n_comp+1;
 
     if opt.plotSplit == 0    
         xFigs = 5;
@@ -380,277 +332,220 @@ function numberOddball_Exp2(varargin)
     figHeight = yFigs * 6;
     figWidth = xFigs * 6;
 
-    binVals = fullRCA(1).settings.freqLabels';
     clear egiH;
     
-    numConds = size(newOrders(1,:),2);
-    cBrewer = load('colorBrewer');
-    boldColors = cBrewer.rgb20([9,3,5,13],:);
-    weakColors = cBrewer.rgb20([10,4,6,14],:);
+    c_brewer = load('colorBrewer_new.mat');
+    bold_colors = c_brewer.rgb20([9,3,5,13],:);
+    weak_colors = c_brewer.rgb20([10,4,6,14],:);
     barH = [0,0];
-    barWidth = .3;
+    bar_width = .3;
     yUnit = 1;
     
     for f = 1:length(carriers) % carriers (i.e. 6 & 8)
         % Axx xVals
-        nTps = size(axxProjMat.ProjMat,tPtsIdx);
+        nTps = size(axx_rca_full.ProjMat,tPtsIdx);
         carrierFreq = [3.0 3.0];
         nReps = [6 6];
-        xValsAxx = linspace(0,1000/carrierFreq(f)*nReps(f),nTps+1);
-        xValsAxx = xValsAxx(2:end);
-        stimOnset = xValsAxx(floor(linspace(1,length(xValsAxx),nReps(f)+1)));
+        axx_xvals = linspace(0,1000/carrierFreq(f)*nReps(f),nTps+1);
+        axx_xvals = axx_xvals(2:end);
+        stimOnset = axx_xvals(floor(linspace(1,length(axx_xvals),nReps(f)+1)));
         stimOnset = stimOnset(1:end-1);
         figure;
         for r = 1:yFigs 
-            if r<6            
+            if r < 6            
                 if opt.plotSplit == 0
-                    curRCA = fullRCA;
+                    curRCA = rca_full;
                     egiH(r,1) = subplot(yFigs,xFigs,(xFigs-2)+(r-1)*xFigs);
                     hold on
-                    rcaColorBar = [min(curRCA.A(:,r)),max(curRCA.A(:,r))];
+                    rcaColorBar = [min(curRCA(1).A(:,r)),max(curRCA(1).A(:,r))];
                     newExtreme = max(abs(rcaColorBar));
                     rcaColorBar = [-newExtreme,newExtreme];
-                    mrC.plotOnEgi(curRCA.A(:,r),rcaColorBar);
+                    mrC.plotOnEgi(curRCA(1).A(:,r),rcaColorBar);
                     hold off
                     rcaType = 'full';
-
-
-
                 else
-                    curRCA = oddRCA;
+                    curRCA = rca_split;
                     egiH(r,1) = subplot(yFigs,xFigs,3+(r-1)*xFigs); %New Candidate
                     hold on
-                    rcaColorBar = [min(curRCA.A(:,r)),max(curRCA.A(:,r))];
+                    rcaColorBar = [min(curRCA(1).A(:,r)),max(curRCA(1).A(:,r))];
                     newExtreme = max(abs(rcaColorBar));
                     rcaColorBar = [-newExtreme,newExtreme];
-                    mrC.plotOnEgi(curRCA.A(:,r),rcaColorBar);
+                    mrC.plotOnEgi(curRCA(1).A(:,r),rcaColorBar);
                     hold off
-                    curRCA = carrierRCA;
                     egiH(r,2) = subplot(yFigs,xFigs,(xFigs-2)+(r-1)*xFigs); %I think this one is correct
                     hold on
-                    rcaColorBar = [min(curRCA.A(:,r)),max(curRCA.A(:,r))];
+                    rcaColorBar = [min(curRCA(5).A(:,r)),max(curRCA(1).A(:,r))];
                     newExtreme = max(abs(rcaColorBar));
                     rcaColorBar = [-newExtreme,newExtreme];
-                    mrC.plotOnEgi(curRCA.A(:,r),rcaColorBar);
+                    mrC.plotOnEgi(curRCA(5).A(:,r),rcaColorBar);
                     hold off
                     rcaType = 'split';
                 end
             else
             end
 
-            %Axx plot
-            if opt.plotSplit == 0
-                % Full Axx
-                subplot(yFigs,xFigs,xFigs+(r-1)*xFigs);
-                subplot(yFigs,xFigs,[(xFigs-1)+(r-1)*xFigs, xFigs+(r-1)*xFigs]);
-                dataToPlot = squeeze(axxProjMat.avg(:,newOrders(f,:),r));
-                errorToPLot = squeeze(axxProjMat.sem(:,newOrders(f,:),r));
-                AxxyMin = floor(min((min(axxProjMat.avg(:,newOrders(f,:),r)-axxProjMat.sem(:,newOrders(f,:),r)))/2))*2;
-                AxxyMax = ceil(max((max(axxProjMat.avg(:,newOrders(f,:),r)+axxProjMat.sem(:,newOrders(f,:),r)))/2))*2;
-                if ( AxxyMax-AxxyMin ) > 10
-                    AxxyUnit = 2;
+            % axx plot
+            for z = 1:2
+                if opt.plotSplit == 0
+                    % full axx
+                    subplot(yFigs,xFigs,xFigs+(r-1)*xFigs);
+                    subplot(yFigs,xFigs,[(xFigs-1)+(r-1)*xFigs, xFigs+(r-1)*xFigs]);
+                    cur_axx = axx_rca_full;
+                    title_str = 'single cycle waveform (all)';
                 else
-                    AxxyUnit = 1;
+                    if z == 1
+                        subplot(yFigs,xFigs,[1+(r-1)*xFigs, 2+(r-1)*xFigs]);
+                        cur_axx = axx_rca_odd;
+                        title_str = 'single cycle waveform (odd)';
+                    else
+                        subplot(yFigs,xFigs,[(xFigs-1)+(r-1)*xFigs,xFigs+(r-1)*xFigs]);
+                        cur_axx = axx_rca_carr;
+                        title_str = 'single cycle waveform (carrier)';
+                    end
                 end
-
-
+                dataToPlot = squeeze(cur_axx.avg(:,new_orders(f,:),r));
+                errorToPLot = squeeze(cur_axx.sem(:,new_orders(f,:),r));
+                axx_ymin = floor(min((min(cur_axx.avg(:,new_orders(f,:),r)-cur_axx.sem(:,new_orders(f,:),r)))/2))*2;
+                axx_ymax = ceil(max((max(cur_axx.avg(:,new_orders(f,:),r)+cur_axx.sem(:,new_orders(f,:),r)))/2))*2;
+                if ( axx_ymax-axx_ymin ) > 10
+                    axx_yunit = 2;
+                else
+                    axx_yunit = 1;
+                end
                 hold on
-                for c=1:size(newOrders(f,:),2)
-                    AxxH(r) = plot(xValsAxx,dataToPlot(:,c),'-','LineWidth',lWidth,'Color',boldColors(c,:));
-                    ErrorBars(xValsAxx',dataToPlot(:,c),errorToPLot(:,c),'color',boldColors(c,:));
-
-%                     fill([(xValsAxx)';flipud((xValsAxx)')],[dataToPlot(:,c)-errorToPLot(:,c);flipud(dataToPlot(:,c)+errorToPLot(:,c))],boldColors(c,:),'EdgeColor',boldColors(c,:),'LineWidth',0.2);
-%                     alpha(0.2);
+                for c=1:size(new_orders(f,:),2)
+                    plot(axx_xvals,dataToPlot(:,c),'-','LineWidth',lWidth,'Color',bold_colors(c,:));
+                    ErrorBars(axx_xvals',dataToPlot(:,c),errorToPLot(:,c),'color',bold_colors(c,:));
                 end
-                ylim([AxxyMin,AxxyMax]);
-                xlim([0,xValsAxx(end)]);
-                set(gca,gcaOpts{:},'xtick',axxTicks{f},'xticklabel',cellfun(@(x) num2str(x),num2cell(axxTicks{f}),'uni',false),'ytick',AxxyMin:AxxyUnit:AxxyMax);
+                ylim([axx_ymin, axx_ymax]);
+                xlim([0,axx_xvals(end)]);
+                set(gca,gcaOpts{:},'xtick',axxTicks{f},'xticklabel',cellfun(@(x) num2str(x),num2cell(axxTicks{f}),'uni',false),'ytick',axx_ymin:axx_yunit:axx_ymax);
                 yLine = repmat(get(gca,'YLim'),nReps(f),1)';
                 line(repmat(stimOnset,2,1),yLine,'Color','black');
                 if r == 1
-                    titleStr = 'Waveform';
-                    title(titleStr);
-                end
+                    title(title_str,'fontweight','normal');
+                elseif r == 6
+                    xlabel('time (ms)');
+                else
+                end        
                 s = get(gca, 'Position');
                 set(gca, 'Position', [s(1)+0.01, s(2), s(3)*0.9, s(4)]);
-                hold off
-
-            else
-                % Odd
-                cur_axxProjMat = axxProjMatOdd;
-                subplot(yFigs,xFigs,[1+(r-1)*xFigs, 2+(r-1)*xFigs]);
-                dataToPlot = squeeze(cur_axxProjMat.avg(:,newOrders(f,:),r));
-                errorToPLot = squeeze(cur_axxProjMat.sem(:,newOrders(f,:),r));
-                AxxyMin = floor(min((min(cur_axxProjMat.avg(:,newOrders(f,:),r)-cur_axxProjMat.sem(:,newOrders(f,:),r)))/2))*2;
-                AxxyMax = ceil(max((max(cur_axxProjMat.avg(:,newOrders(f,:),r)+cur_axxProjMat.sem(:,newOrders(f,:),r)))/2))*2;
-                if ( AxxyMax-AxxyMin ) > 10
-                    AxxyUnit = 2;
+                if opt.plotSplit == 0
+                    continue
                 else
-                    AxxyUnit = 1;
                 end
-                hold on
-                for c=1:size(newOrders(f,:),2)
-                    AxxH(r) = plot(xValsAxx,dataToPlot(:,c),'-','LineWidth',lWidth,'Color',boldColors(c,:));
-                    ErrorBars(xValsAxx',dataToPlot(:,c),errorToPLot(:,c),'color',boldColors(c,:));
-                    %fill([(xValsAxx)';flipud((xValsAxx)')],[dataToPlot(:,c)-errorToPLot(:,c);flipud(dataToPlot(:,c)+errorToPLot(:,c))],boldColors(c,:),'EdgeColor',boldColors(c,:),'LineWidth',0.2);
-                    %alpha(0.2);
-                end
-                ylim([AxxyMin,AxxyMax]);
-                xlim([0,xValsAxx(end)]);
-                set(gca,gcaOpts{:},'xtick',axxTicks{f},'xticklabel',cellfun(@(x) num2str(x),num2cell(axxTicks{f}),'uni',false),'ytick',AxxyMin:AxxyUnit:AxxyMax);
-                yLine = repmat(get(gca,'YLim'),nReps(f),1)';
-                line(repmat(stimOnset,2,1),yLine,'Color','black');
-                if r == 1
-                    titleStr = 'Oddball Waveform';
-                    title(titleStr);
-                end
-                s = get(gca, 'Position');
-                set(gca, 'Position', [s(1), s(2), s(3)*0.9, s(4)]);
-                hold off
-
-                %Carrier
-                cur_axxProjMat = axxProjMatCarrier;
-                subplot(yFigs,xFigs,[(xFigs-1)+(r-1)*xFigs,xFigs+(r-1)*xFigs]);
-                dataToPlot = squeeze(cur_axxProjMat.avg(:,newOrders(f,:),r));
-                errorToPLot = squeeze(cur_axxProjMat.sem(:,newOrders(f,:),r));
-                AxxyMin = floor(min((min(cur_axxProjMat.avg(:,newOrders(f,:),r)-cur_axxProjMat.sem(:,newOrders(f,:),r)))/2))*2;
-                AxxyMax = ceil(max((max(cur_axxProjMat.avg(:,newOrders(f,:),r)+cur_axxProjMat.sem(:,newOrders(f,:),r)))/2))*2;
-                if ( AxxyMax-AxxyMin ) > 10
-                    AxxyUnit = 2;
-                else
-                    AxxyUnit = 1;
-                end
-                hold on
-                for c=1:size(newOrders(f,:),2)
-                    AxxH(r) = plot(xValsAxx,dataToPlot(:,c),'-','LineWidth',lWidth,'Color',boldColors(c,:));
-                    ErrorBars(xValsAxx',dataToPlot(:,c),errorToPLot(:,c),'color',boldColors(c,:));
-                    %fill([(xValsAxx)';flipud((xValsAxx)')],[dataToPlot(:,c)-errorToPLot(:,c);flipud(dataToPlot(:,c)+errorToPLot(:,c))],boldColors(c,:),'EdgeColor',boldColors(c,:),'LineWidth',0.2);
-                    %alpha(0.2);
-                end
-                ylim([AxxyMin,AxxyMax]);
-                xlim([0,xValsAxx(end)]);
-                set(gca,gcaOpts{:},'xtick',axxTicks{f},'xticklabel',cellfun(@(x) num2str(x),num2cell(axxTicks{f}),'uni',false),'ytick',AxxyMin:AxxyUnit:AxxyMax);
-                yLine = repmat(get(gca,'YLim'),nReps(f),1)';
-                line(repmat(stimOnset,2,1),yLine,'Color','black');
-                if r == 1
-                    titleStr = 'Carrier Waveform';
-                    title(titleStr);
-                end
-                s = get(gca, 'Position');
-                set(gca, 'Position', [s(1), s(2), s(3)*0.9, s(4)]);
-                hold off
             end
-
 
             for t = 1:2
                 subplot(yFigs,xFigs,(xFigs-4)+(r-1)*xFigs+(t-1));
-                numFreqs = max(freqsToUse)/2;
-                curIdx = (freqsToUse(1:end/2))+(t-1)*numFreqs;
-                xVals = repmat((1:numFreqs),numConds,1) + repmat(linspace(-barWidth,barWidth,numConds),numFreqs,1)';
-
                 hold on
-                for c=1:numConds
-                    curOrder = newOrders(f,:);
+                if opt.plotSplit
+                    cur_order = new_orders(f,:);
+                else
+                    cur_order = new_orders(f,:);
+                end
+                freq_set = max(use_freqs)/2;
+                cond_set = length(cur_order);
+                curIdx = (use_freqs(1:end/2))+(t-1)*freq_set;
+                x_vals = repmat((1:freq_set),cond_set,1) + repmat(linspace(-bar_width,bar_width,cond_set),freq_set,1)';
+                for c=1:length(cur_order)
                     if plotSNR
-                        curRange = snrVals(curIdx,:,curOrder,1,opt.plotSplit+1);
-                        %valSet = snrVals(curIdx,r,c,f,opt.plotSplit+1);
-                        yVals = snrVals(curIdx,r,curOrder(c),1,opt.plotSplit+1);
+                        curRange = snrVals(curIdx,:,cur_order,1,opt.plotSplit+1);
+                        %valSet = snrVals(curIdx,r,c,f,opt.plotSplit+1)
+                      
                     else
-                        curRange = ampVals(curIdx,r,curOrder,1,opt.plotSplit+1) + errUB(curIdx,r,curOrder,1,opt.plotSplit+1);
-                        %valSet = ampVals(:,r,c,f,opt.plotSplit+1);
-                        yVals = ampVals(curIdx,r,curOrder(c),1,opt.plotSplit+1);
-                        %plot(1:2,noiseVals(curIdx,r,c,f,opt.plotSplit+1),'sq','Color',subColors(c,:),'MarkerSize',5);
-                        errorbar(xVals(c,:),yVals,errLB(curIdx,r,curOrder(c),1,opt.plotSplit+1),errUB(curIdx,r,curOrder(c),1,opt.plotSplit+1),'.','Color','k','LineWidth',lWidth,'marker','none');
-                    end
-                    
-                    yMax = ceil(max(curRange(:))+0.5);
-                    zeroSig = tVs0Pval(curIdx,r,curOrder(c),1,opt.plotSplit+1)<0.05;
-                    
-                    barH(c) = bar(xVals(c,:),yVals,'BarWidth',barWidth,'edgecolor','none','facecolor',boldColors(c,:));
-                    
-                    for z = 1:length(zeroSig)
-                        if ~zeroSig(z)
-                            bar(xVals(c,z),yVals(z),'BarWidth',barWidth,'edgecolor','none','facecolor',weakColors(c,:));
+                        amp_vals = arrayfun(@(x) curRCA(x).stats.Amp(r,cur_order(c)), curIdx);
+                        err_ub = arrayfun(@(x) curRCA(x).stats.ErrUB(r,cur_order(c)), curIdx);
+                        err_lb = arrayfun(@(x) curRCA(x).stats.ErrLB(r,cur_order(c)), curIdx);
+                        errorbar(x_vals(c,:), amp_vals, err_lb, err_ub, '.k', 'LineWidth',lWidth, 'marker','none');
+                        if c == 1
+                            y_max = ceil(max(cell2mat(...
+                                arrayfun(@(x) max(curRCA(x).stats.Amp(r,cur_order)+curRCA(x).stats.ErrUB(r,cur_order)), curIdx,'uni',false))));
                         else
                         end
                     end
+                    within_sig = arrayfun(@(x) curRCA(x).stats.tSqrdP(r,cur_order(c))<0.05, curIdx);
                     
-                    if opt.ampTest == 0
-                        curSig = tPval(curIdx,r,1,opt.plotSplit+1,:,f)<0.05;
-                    elseif opt.ampTest == 1
-                        curSig = AmptPval(curIdx,r,1,opt.plotSplit+1,:,f)<0.05;
-                    elseif opt.ampTest == 2
-                        curSig = zSNRtPval(curIdx,r,1,opt.plotSplit+1,:,f)<0.05;
-                    end
-                    
-                    %curSig = curSig+(tPval(curIdx,r,1,opt.plotSplit+1,:,f)<0.005);
-                    curSig = squeeze(curSig);
-%                     if any(any(curSig))
-%                         [freq,test] = find(curSig >0);
-%                         arrayfun(@(x) text(x,yMax*.95,'*','fontsize',20,'HorizontalAlignment','center'), freq,'uni',false);
-%                         [freq,test] = find(curSig==2);
-%                         arrayfun(@(x) text(x,yMax*.85,'*','fontsize',20,'HorizontalAlignment','center'), freq,'uni',false);
-%                     else
-%                     end
-                    if any(curSig(:,c))
-                        if c==1
-                            freq = find(curSig(:,c) >0);
-                            arrayfun(@(x) text(x-.3,yMax*.85,'1','fontsize',10,'HorizontalAlignment','center'), freq,'uni',false);
-                        elseif c==2
-                            freq = find(curSig(:,c) >0);
-                            arrayfun(@(x) text(x,yMax*.85,'3','fontsize',10,'HorizontalAlignment','center'), freq,'uni',false);
-                        elseif c==3
-                            freq = find(curSig(:,c) >0);
-                            arrayfun(@(x) text(x+.3,yMax*.85,'N','fontsize',10,'HorizontalAlignment','center'), freq,'uni',false);
+                    amp_h(c) = bar(x_vals(c,:), amp_vals,'BarWidth',bar_width,'edgecolor','none','facecolor',bold_colors(c,:));
+
+                    for z = 1:length(within_sig)
+                        if within_sig(z)
+                            patch_x = [ x_vals(c,z)-bar_width/2, x_vals(c,z)+bar_width/2, x_vals(c,z)+bar_width/2, x_vals(c,z)-bar_width/2];
+                            patch_y = [0, 0, y_max, y_max];
+                            pa_h = patch(patch_x, patch_y, bold_colors(c,:),'edgecolor','none','facealpha',.25); 
+                            uistack(pa_h,'bottom');
+                            %amp_h(c) = bar(x_vals(c,z), amp_vals(z), 'bar_width',bar_width, 'edgecolor', 'none', 'facecolor', weak_colors(c,:));
+                        else
                         end
+                    end
+
+                    if opt.ampTest == 0
+                        cur_p = squeeze(between_t2p(curIdx,r,opt.plotSplit+1,:,f));
+                    elseif opt.ampTest == 1
+                        cur_p = squeeze(AmptPval(curIdx,r,opt.plotSplit+1,:,f));
+                    elseif opt.ampTest == 2
+                        cur_p = squeeze(zSNRtPval(curIdx,r,opt.plotSplit+1,:,f));
+                    end
+                    cur_sign = squeeze(between_sign(curIdx,r,opt.plotSplit+1,:,f) == 1);
+                    between_idx = (cur_p(:,c) < 0.05) & (cur_sign(:,c) == 1);
+                    if any(between_idx)
+                        sig_x = [-.2, 0, .2];
+                        sig_y = [1.05,1.05,.95];
+                        sig_labels = {'1','3','N'};
+                        freq = find(between_idx);
+                        arrayfun(@(x) text(x+sig_x(c), y_max*sig_y(c),sig_labels{c},'fontsize',10,'HorizontalAlignment','center'), freq,'uni',false);
                     end
                 end
                 
-                yUnit = 1;
-                ylim([0,yMax]);
-                xlim([.5,numFreqs+0.5]);
+                if y_max > 2
+                    y_unit = 1;
+                else
+                    y_unit = y_max/4;
+                end
+                ylim([0,y_max]);
+                xlim([.5,freq_set+0.5]);
                 if r== 3  && t == 1
                     if plotSNR
                         ylabel('SNR','fontname','Helvetica','fontsize',fSize)
                     else
-                        ylabel('Amplitude (\muVolts)','fontname','Helvetica','fontsize',fSize)
+                        ylabel('amplitude (\muVolts)')
                     end
                 else
                 end
 
                 if t == 1
-                    titleStr = 'Oddball';
+                    title_str = 'oddball';
                     harmLabels = {'1F1','2F1','3F1','4F1'};
                 else
-                    titleStr = 'Carrier';
+                    title_str = 'carrier';
                     harmLabels = {'1F2','2F2','3F2','4F2'};
                 end
                 if r==1
-                    title(titleStr,'fontname','Helvetica','fontsize',fSize);
+                    title(title_str,'fontweight','normal','fontname','Helvetica','fontsize',fSize);
                 elseif r==6
                     if t==2
-                        lH = legend(barH,{'control','dist 1','dist 3'});
+                        lH = legend(amp_h,{'control','dist 1','dist 3'});
                         legend boxoff
-                        lPos = get(lH,'position');
-                        lPos(1) = lPos(1) + .18;
-                        lPos(2) = lPos(2) + .04;
-                        set(lH,'position',lPos,'fontsize',14,'fontname','Helvetica');
+                        l_pos = get(lH,'position');
+                        l_pos(1) = l_pos(1) + .10;
+                        l_pos(2) = l_pos(2) + .05;
+                        set(lH,'position',l_pos);
                     else
                     end
                 else
                 end
-                set(gca,gcaOpts{:},'xtick',[1,2,3,4],'xticklabel',harmLabels,'ytick',0:yUnit:yMax);
+                set(gca, gcaOpts{:}, 'xtick', [1,2,3,4], 'xticklabel', harmLabels, 'ytick', 0:y_unit:y_max);
                 hold off
             end
         end
         drawnow;
-        for r = 1:5;
-            for z = 1:size(egiH,2);
+        for r = 1:5
+            for z = 1:size(egiH,2)
                 if opt.plotSplit
                     addVal = 0.72;
                     shiftLeft = 0.02;
                 else
-                    addVal = 1;
+                    addVal = 0.8;
                     shiftLeft = 0;
                 end
                 newPos = get(egiH(r,z),'position');
@@ -678,38 +573,39 @@ function numberOddball_Exp2(varargin)
             trialLab = 'corTrials';
         else
             trialLab = 'allTrials';
+        end
         if plotSNR        
-            export_fig(sprintf('%s/%s_car%d_%s_snr.pdf',figureLocation,dataType,carriers(f),rcaType),'-pdf','-transparent',gcf);
+            fig_name = sprintf('%s/%s_car%d_%s_snr.pdf',fig_location,data_type,carriers(f),rcaType);
         else
-            if trainData == 0
-                export_fig(sprintf('%s/%s_car%d_%s_%s_%s.pdf',figureLocation,dataType,carriers(f),rcaType,testplot,trialLab),'-pdf','-transparent',gcf);
-            elseif trainData == 1
-                export_fig(sprintf('%s/%s_car%d_%s_%s_%s_%s.pdf',figureLocation,dataType,carriers(f),rcaType,trainStim,testplot,trialLab),'-pdf','-transparent',gcf);
-            elseif trainData == 2
-                export_fig(sprintf('%s/%s_car%d_%s_%s_%s_%s.pdf',figureLocation,dataType,carriers(f),rcaType,trainStim,testplot,trialLab),'-pdf','-transparent',gcf);
+            if train_data == 0
+                fig_name = sprintf('%s/%s_car%d_%s_%s_%s.pdf',fig_location,data_type,carriers(f),rcaType,testplot,trialLab);
+            elseif train_data == 1
+                fig_name = sprintf('%s/%s_car%d_%s_%s_%s_%s.pdf',fig_location,data_type,carriers(f),rcaType,train_stim,testplot,trialLab);
+            elseif train_data == 2
+                fig_name = sprintf('%s/%s_car%d_%s_%s_%s_%s.pdf',fig_location,data_type,carriers(f),rcaType,train_stim,testplot,trialLab);
             else
             end
         end
-        end
+        export_fig(fig_name,'-pdf','-painters','-transparent',gcf);
     end
 %% Test plot just one condition
 % close all
-% freqsToUse= 1:8;
+% use_freqs= 1:8;
 % t = 1; % 1 = odd; 2 = carrier 
-% numFreqs = max(freqsToUse)/2;
-% curIdx = (freqsToUse(1:end/2))+(t-1)*numFreqs;
+% numFreqs = max(use_freqs)/2;
+% curIdx = (use_freqs(1:end/2))+(t-1)*numFreqs;
 % f = 1; % carrier either 1 = 6 or 2 = 8
 % rc = 2; %rca component number
-% newOrders = [[5 4 6]; [2 3 1]]; %6v6,6v5,6v9; 8v8,8v9,8v5
-% curOrder = newOrders(f,:);
+% new_orders = [[5 4 6]; [2 3 1]]; %6v6,6v5,6v9; 8v8,8v9,8v5
+% cur_order = new_orders(f,:);
 % hold on
 % for c = 1:3
-%     curOrder = newOrders(f,:);
-%     curRange = ampVals(curIdx,rc,curOrder,1,1) + errUB(curIdx,rc,curOrder,1,1);
-%     ampH(c)=plot(1:numFreqs,ampVals(curIdx,rc,curOrder(c),1,opt.plotSplit+1),'-','LineWidth',lWidth,'Color',subColors(c,:));
-%     errorbar(1:numFreqs,ampVals(curIdx,rc,curOrder(c),1,1),errLB(curIdx,rc,curOrder(c),1,1),errUB(curIdx,rc,curOrder(c),1,1),'Color',subColors(c,:),'LineWidth',lWidth);
+%     cur_order = new_orders(f,:);
+%     curRange = ampVals(curIdx,rc,cur_order,1,1) + errUB(curIdx,rc,cur_order,1,1);
+%     ampH(c)=plot(1:numFreqs,ampVals(curIdx,rc,cur_order(c),1,opt.plotSplit+1),'-','LineWidth',lWidth,'Color',subColors(c,:));
+%     errorbar(1:numFreqs,ampVals(curIdx,rc,cur_order(c),1,1),errLB(curIdx,rc,cur_order(c),1,1),errUB(curIdx,rc,cur_order(c),1,1),'Color',subColors(c,:),'LineWidth',lWidth);
 %     yMax = ceil(max(curRange(:)));
-%     zeroSig = tVs0Pval(curIdx,rc,curOrder(c),1,1)<0.05;
+%     zeroSig = tVs0Pval(curIdx,rc,cur_order(c),1,1)<0.05;
 %     if any(zeroSig)
 %         if c==1
 %             arrayfun(@(x) ...
