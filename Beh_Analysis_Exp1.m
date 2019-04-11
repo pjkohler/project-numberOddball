@@ -1,10 +1,12 @@
 close all;
 clear all;
-dataLocation = '/Volumes/Denali_4D2/kohler/EEG_EXP/DATA/numeroOddball/Experiment1';
+dataLocation = '/Volumes/Denali_DATA1/kohler/EEG_EXP/DATA/numeroOddball/Experiment1';
 %dataLocation = '~/Documents/Research/Stanford/SSVEP';
 folderNames=subfolders(sprintf('%s/20*',dataLocation),1);
 for s = 1:length(folderNames)
    tempFolders = subfolders(sprintf('%s/',folderNames{s}),1);
+   tempFolders = tempFolders(~ismember(tempFolders, [folderNames{s},'/not_time_corrected']));
+   tempFolders = tempFolders(~ismember(tempFolders, [folderNames{s},'/time_corrected']));
    matFiles = subfiles(sprintf('%s/ALL_Exp_MATL_HCN_128_Avg/RT*',tempFolders{end}),1);
    blockNum = 0;
    for m = 1:length(matFiles)
@@ -59,79 +61,98 @@ end
 %For plotting
 figureLocation = sprintf('%s/figures',dataLocation);
 lWidth = 2;
-freqLabels = {'6:1Hz','3.75:0.75Hz','3:0.5Hz'};
-gcaOpts = {'box','off','fontname','Helvetica','linewidth',lWidth,'box','off'};
+fSize = 12;
+freqLabels = {'6 & 1Hz','3.75 & 0.75Hz','3 & 0.5Hz'};
 avgdPr = mean(dPr,2);
 avgBias = mean(bias,2);
 errdPr = std(dPr,[],2)./sqrt(length(folderNames)-1);
 errBias = std(bias,[],2)./sqrt(length(folderNames)-1);
 
+% Individual subject plot
+cBrewer = load('colorBrewer_new');
+colors = cBrewer.rgb20(round(linspace(1,20,length(IDs))),:);
+gcaOpts = {'tickdir','out','ticklength',[0.0200,0.0200],'box','off','fontsize',fSize,'fontname','Helvetica','linewidth',lWidth};
+
 %dPrime
-plot([1 2 3], avgdPr,'.','markersize',20,'Color','b');
-hold on
-errorbar(avgdPr,errdPr,'Color','b');
-ylabel('dPrime');
-xlabel('Freq pairs');
-yMax = max(avgdPr+errdPr);
-set(gca,gcaOpts{:},'xtick',[1,2,3],'xticklabel',freqLabels,'xlim',[0.5,3.5],'ylim',[0,yMax+0.5],'box','off');
-hold off
+for z = 1:2
+    subplot(2,1,z)
+    if z == 1
+        errorb(avgdPr,errdPr,'Color',colors(1,:), 'barwidth', 0.25);
+        hold on
+        pH = plot([1 2 3], avgdPr,'o','markersize',10,'LineWidth',2,'MarkerEdgeColor',colors(1,:),'MarkerFaceColor',[1,1,1]);
+        y_lims = [0,4];
+        ylabel('dPrime');
+    else
+        errorb(avgBias,errBias,'Color',colors(1,:), 'barwidth', 0.25);
+        hold on
+        pH = plot([1 2 3], avgBias,'o','markersize',10,'LineWidth',2,'MarkerEdgeColor',colors(1,:),'MarkerFaceColor',[1,1,1]);
+        plot([1 2 3], avgBias,'.','markersize',20,'Color','b');
+        y_lims = [-0.5,1];
+        ylabel('bias');
+    end
+    uistack(pH, 'top');
+    xlabel('freq pairs');
+    set(gca,gcaOpts{:},'xtick',[1,2,3],'xticklabel',freqLabels,'xlim',[0.5,3.5],'ylim',y_lims,'box','off');
+    hold off
+end
+set(gcf, 'units', 'centimeters');
+figPos = get(gcf,'pos');
+figPos(4) = 20;
+figPos(3) = 20;
+set(gcf,'pos',figPos);
 export_fig(sprintf('%s/avg_dPrime.pdf',figureLocation),'-pdf','-transparent',gcf);
 
-%Bias
-plot([1 2 3], avgBias,'.','markersize',20,'Color','b');
-hold on
-errorbar(avgBias,errBias,'Color','b');
-ylabel('Bias');
-xlabel('Freq pairs');
-set(gca,gcaOpts{:},'xtick',[1,2,3],'xticklabel',freqLabels, 'xlim',[0.5,3.5],'box','off');
-hold off
-export_fig(sprintf('%s/avg_Bias.pdf',figureLocation),'-pdf','-transparent',gcf);
+%% 
+xFigs = 2;% dPrime or Bias
+yFigs = 3;% Freq pairs
+titleStr = {'dPrime', 'bias'};
 
-% Individual subject plot
-cBrewer = load('colorBrewer');
-colors = cBrewer.rgb20(round(linspace(1,20,length(IDs))),:);
-yFigs = 2;% dPrime or Bias
-xFigs = 3;% Freq pairs
-titleStr = {'6:1Hz','3.75:0.75Hz','3:0.5Hz'};
-titleStr2 = {'dPrime', 'Bias'};
-
-for c=1:2 % Freq pairs
-    for f=1:3 %dPrime or Bias
-        subplot(yFigs,xFigs,xFigs*(c-1)+f)
+for c=1:2 %dPrime or Bias
+    for f=1:3 % Freq pairs
+        subplot(yFigs,xFigs, c+(f-1)*xFigs)
         if c == 1
             dataToPlot = dPr;
+            y_min = 0;
+            y_max = 5;
         else
             dataToPlot = bias;
+            y_min = -1;
+            y_max = 2;
         end
-        scatter(1:length(IDs),dataToPlot(f,:),60,colors,'filled');
+        x_min = 0.5;
+        x_max = 15.5;
+        scatter(1:length(IDs),dataToPlot(f,:),100,colors);
         %plot([1:length(IDs)],dataToPlot,'.','markersize',20);
         hold on
         if c==1
-            hline = refline([0,errdPr(f)*2]); % 2* std error of dprime sample distribution
-%             hline = refline([0,2]); %dPrime = 2 ~ p<0.05
-            
+            %ref_h = plot([x_min, x_max],ones(1,2)*errdPr(f)*2,'k-','linewidth',2);
+            % uistack(ref_h,'bottom');
         else
-            hline = refline([0,0]); %bias = 0
+            ref_h = plot([x_min, x_max], zeros(1,2),'k-','linewidth',2);
+            uistack(ref_h,'bottom');
         end
-        hline.Color = 'k';
-        hline.LineWidth = 2;
+        
+        if f == 1
+            title(titleStr{c}, 'fontweight','normal')
+        elseif f == 3
+            xlabel('participants');
+        end
         if c == 1
-            title(titleStr{f})
-            if f == 1
-                ylabel(titleStr2{c})
-            end
-        else
-            if f == 1
-                ylabel(titleStr2{c})
-            end
+            ylabel(freqLabels{f})
         end
         yMax = max(max(dataToPlot));
-        set(gca,gcaOpts{:},'xtick',[1:length(IDs)],'xticklabel',IDs, 'xlim',[0.5,length(IDs)+0.5],'ylim',[0-0.5,yMax+0.5],'box','off');
-        xtickangle(90);
+        set(gca,gcaOpts{:},'xtick',[1:length(IDs)], 'xticklabel', {''}, 'xlim',[x_min, x_max],'ylim',[y_min, y_max],'box','off','clipping','off');
+        %xtickangle(90);
         hold off
     end
     
 end
+tightfig;
+set(gcf, 'units', 'centimeters');
+figPos = get(gcf,'pos');
+figPos(4) = 15;
+figPos(3) = 20;
+set(gcf,'pos',figPos);
 export_fig(sprintf('%s/SubjPerformance.pdf',figureLocation),'-pdf','-transparent',gcf);
 
 % Paired tTests dPr

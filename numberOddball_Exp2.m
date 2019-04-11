@@ -61,7 +61,7 @@ function numberOddball_Exp2(varargin)
 
     %% VARIABLES THAT CAN BE CHANGED
     top_folder = '/Volumes/Denali_DATA1/kohler/EEG_EXP/DATA/numeroOddball';
-    do_exp = 2;
+    do_exp = 3;
 
     %% IDENTIFY DATA LOCATION
     data_location = sprintf('%s/Experiment%.0d',top_folder,do_exp);    
@@ -83,25 +83,56 @@ function numberOddball_Exp2(varargin)
     %% SETUP INPUTS
     use_bins = 0; % use average bin, the zeroeth one
     use_freqs = 1:8; % indices of frequencies to include in analysis (the values must be present in the frequency column of all DFT/RLS exports)
-   
-    train_data = opt.trainData;
-    if train_data == 0
-        use_conds = 1:6;
-        %Reorder to make plotting easier
-        carriers = [6, 8];
-        new_orders = [[5 4 6]; [2 3 1]]; %6v6,6v5,6v9; 8v8,8v9,8v5
-    elseif train_data == 1
-        use_conds = 4:6;
-        new_orders = [2 1 3];
-        carriers = 6;
-        train_stim = 'train6';
-    elseif train_data == 2
-        use_conds = 1:3;
-        new_orders = [2 3 1];
-        carriers = 8;
-        train_stim = 'train8';
-    end
+    carrier_freq = 3.0;
+    axx_reps = 6;
     
+    % think how to compute the appropriate pairs to do the
+    % ttests and how they are stored
+    if do_exp == 2
+        color_idx = 1:3;
+        if opt.trainData == 0
+            use_conds = 1:6;
+            %Reorder to make plotting easier
+            carriers = [6, 8];
+            new_orders = [[5 4 6]; [2 3 1]]; %6v6,6v5,6v9; 8v8,8v9,8v5
+            contrast_order = [[4 5];[6 5];[6 4];[3 2];[1 2];[1 3]];
+        elseif opt.trainData == 1
+            use_conds = 4:6;
+            new_orders = [2 1 3];
+            carriers = 6;
+            train_stim = 'train6';
+            contrast_order = [[1 2];[3 2];[3 1]];
+        elseif opt.trainData == 2
+            use_conds = 1:3;
+            new_orders = [2 3 1];
+            carriers = 8;
+            train_stim = 'train8';
+            contrast_order = [[3 2];[1 2];[1 3]];
+        end
+        cond_names = {'control','dist 1','dist 3'};
+    elseif do_exp == 3
+        color_idx = [1,3];
+        if opt.trainData == 0
+            use_conds = 1:8;
+            carriers = [5 6 8 9];
+            new_orders = [[1 2]; [3 4]; [5 6]; [7 8]]; %5v5,5v8; 6v6,6v9; 8v8,8v5; 9v9,9v6
+            contrast_order = [[2 1];[4 3];[6 5];[8 7]];
+        elseif opt.trainData == 1
+            use_conds = [1 2 5 6];
+            new_orders = [[1 2]; [5 6]];
+            carriers = [5 8];
+            train_stim = 'train5_8';
+            contrast_order = [[2 1];[6 5]];
+        elseif opt.trainData == 2
+            use_conds = [3 4 7 8];
+            new_orders = [[3 4]; [7 8]];
+            carriers = [6 9];
+            train_stim = 'train6_9';
+            contrast_order = [[4 3];[8 7]];
+        end
+        cond_names = {'control','dist 3'};
+    end
+
     use_trials = []; % subset of trials to use for analysis (if set to false or empty, all trials will be used)
     n_reg = 10; % RCA regularization constant (7-9 are typical values, but see within-trial eigenvalue plot in rca output)
     n_comp = 5; % number of RCs that you want to look at (3-5 are good values, but see across-trial eigenvalue plot in rca output)
@@ -133,7 +164,14 @@ function numberOddball_Exp2(varargin)
         end
         % full RCA, use all harmonics 1F1, 2F1, 1F2 and 2F2
         rca_full = rcaSweep(path_names, use_bins, use_freqs, use_conds, use_trials, n_reg, n_comp, data_type, opt.chanToCompare, [], rc_plotstyle, opt.forceSourceData); % TRUE
-
+        
+        if do_exp == 3
+            for f = 1:numel(rca_full)
+                rca_full(1,f) = flipSwapRCA(rca_full(1,f),1:5,2);
+            end
+        else
+        end
+        
         rca_h = grabCovFig(gcf);
         export_fig(sprintf('%s/full_rca_cond%s_cov.pdf',fig_location,sprintf('%.0d',use_conds)),'-pdf','-transparent',rca_h);
         close all;
@@ -191,7 +229,7 @@ function numberOddball_Exp2(varargin)
 
     keepConditions = true;
     errorType = 'SEM';
-    doNR = false(1,6,6); % 1 freq, 5 RCs, 6 conditions
+    doNR = []; % 1 freq, 5 RCs, 6 conditions
     for d = 1:3 % compute values for both full RCA and merge the split oddball/carrier
         if d == 1
             curRCA = rca_full;
@@ -223,7 +261,7 @@ function numberOddball_Exp2(varargin)
             n_tps = size(curAxxRCA(c).Projected{1,1},1);
             n_rca = size(curAxxRCA(c).Projected{1,1},2);
             n_subs = size(curAxxRCA(c).Projected,2);
-            curAxxRCA(c).ProjMat = reshape(cell2mat(curAxxRCA.Projected),n_tps,n_cond,n_rca,n_subs);
+            curAxxRCA(c).ProjMat = reshape(cell2mat(curAxxRCA(c).Projected),n_tps,n_cond,n_rca,n_subs);
             curAxxRCA(c).avg = nanmean(curAxxRCA(c).ProjMat,4);
             curAxxRCA(c).std = nanstd(curAxxRCA(c).ProjMat,0,4);
             curAxxRCA(c).sem = curAxxRCA(c).std./sqrt(n_subs);
@@ -244,20 +282,10 @@ function numberOddball_Exp2(varargin)
     clc;
     
     %% STATS
-    % think how to compute the appropriate pairs to do the
-    % ttests and how they are stored
-    contrast_order = [[4 5];[6 5];[6 4];[3 2];[1 2];[1 3]];
-    store_order = [[1 1];[2 1];[3 1];[1 2];[2 2];[3 2]];
-    if train_data == 1
-        contrast_order = [[1 2];[3 2];[3 1]];
-    elseif train_data == 2
-        contrast_order = [[3 2];[1 2];[1 3]];
-    else
-    end
     % get the data and run the between group tests
     for f = 1:max(use_freqs)
-        for rcType = 1:2
-            if rcType == 1
+        for rc_type = 1:2
+            if rc_type == 1
                 [rca_data_real,rca_data_imag] = getRealImag(rca_full(f).data);
                 [comp_data_real,comp_data_imag] = getRealImag(rca_full(f).comparisonData);
             else
@@ -281,10 +309,10 @@ function numberOddball_Exp2(varargin)
                 temp_amp = sqrt(nanmean(x_data,2).^2+nanmean(y_data,2).^2);
                 for t=1:size(contrast_order,1) % number of tTests
                     results = tSquaredFourierCoefs(squeeze(xy_data(:,:,contrast_order(t,:))));
-                    between_t2sig(f,r,rcType,store_order(t,1),store_order(t,2)) = results.H;
-                    between_t2p(f,r,rcType,store_order(t,1),store_order(t,2)) = results.pVal;
-                    between_t2Stat(f,r,rcType,store_order(t,1),store_order(t,2)) = results.tSqrd;
-                    between_sign(f,r,rcType,store_order(t,1),store_order(t,2)) = sign(temp_amp(contrast_order(t,1))-temp_amp(contrast_order(t,2)));
+                    between_t2sig(f, r, rc_type, t) = results.H;
+                    between_t2p(f, r, rc_type, t) = results.pVal;
+                    between_t2Stat(f, r, rc_type, t) = results.tSqrd;
+                    between_sign(f, r, rc_type, t) = sign(temp_amp(contrast_order(t,1))-temp_amp(contrast_order(t,2)));
 %                     % amplitude paired ttest
 %                     [h,p,ci,ampResults] = ttest(ampData(:,contrast_order(t,1)),ampData(:,contrast_order(t,2)));
 %                     AmptSig(f,r,fPair,rcType,store_order(t,1),store_order(t,2)) = h;
@@ -299,7 +327,10 @@ function numberOddball_Exp2(varargin)
             end
         end
     end
-
+    
+    
+    %%
+    [ rcaRelExpl, rcaVarExpl ,pcaVarExpl ] = rcaExplained(rca_full(1),2);
 
     %% NEW PLOTTING
     close all
@@ -314,7 +345,7 @@ function numberOddball_Exp2(varargin)
     % axxProjMat.std = axxProjMat(:,newOrder,:);
     % axxProjMat.sem = axxProjMat(:,newOrder,:);
     % axxProjMat.ProjMat = axxProjMat.ProjMat(:,newOrder,:,:);
-    axxTicks = {[0 500 1000 1500 2000], [0 500 1000 1500 2000]};
+    axx_ticks = [0 500 1000 1500 2000];
     bgColors = [1,1,1; 0,0,0];
     subColors =  repmat(distinguishable_colors(4,bgColors),2,1);
     subColors = subColors(1:6,:); %Change this from use_conds for consistency in colors between plots
@@ -338,18 +369,16 @@ function numberOddball_Exp2(varargin)
     bold_colors = c_brewer.rgb20([9,3,5,13],:);
     weak_colors = c_brewer.rgb20([10,4,6,14],:);
     barH = [0,0];
-    bar_width = .3;
     yUnit = 1;
+    bar_width = 0.3;
     
     for f = 1:length(carriers) % carriers (i.e. 6 & 8)
         % Axx xVals
         nTps = size(axx_rca_full.ProjMat,tPtsIdx);
-        carrierFreq = [3.0 3.0];
-        nReps = [6 6];
-        axx_xvals = linspace(0,1000/carrierFreq(f)*nReps(f),nTps+1);
+        axx_xvals = linspace(0, 1000/carrier_freq * axx_reps , nTps+1);
         axx_xvals = axx_xvals(2:end);
-        stimOnset = axx_xvals(floor(linspace(1,length(axx_xvals),nReps(f)+1)));
-        stimOnset = stimOnset(1:end-1);
+        stim_onset = axx_xvals(floor(linspace(1,length(axx_xvals),axx_reps + 1)));
+        stim_onset = stim_onset(1:end-1);
         figure;
         for r = 1:yFigs 
             if r < 6            
@@ -414,14 +443,14 @@ function numberOddball_Exp2(varargin)
                 end
                 hold on
                 for c=1:size(new_orders(f,:),2)
-                    plot(axx_xvals,dataToPlot(:,c),'-','LineWidth',lWidth,'Color',bold_colors(c,:));
-                    ErrorBars(axx_xvals',dataToPlot(:,c),errorToPLot(:,c),'color',bold_colors(c,:));
+                    plot(axx_xvals,dataToPlot(:,c),'-','LineWidth',lWidth,'Color',bold_colors(color_idx(c),:));
+                    ErrorBars(axx_xvals',dataToPlot(:,c),errorToPLot(:,c),'color',bold_colors(color_idx(c),:));
                 end
                 ylim([axx_ymin, axx_ymax]);
                 xlim([0,axx_xvals(end)]);
-                set(gca,gcaOpts{:},'xtick',axxTicks{f},'xticklabel',cellfun(@(x) num2str(x),num2cell(axxTicks{f}),'uni',false),'ytick',axx_ymin:axx_yunit:axx_ymax);
-                yLine = repmat(get(gca,'YLim'),nReps(f),1)';
-                line(repmat(stimOnset,2,1),yLine,'Color','black');
+                set(gca,gcaOpts{:},'xtick',axx_ticks,'xticklabel',cellfun(@(x) num2str(x),num2cell(axx_ticks),'uni',false),'ytick',axx_ymin:axx_yunit:axx_ymax);
+                yLine = repmat(get(gca,'YLim'),axx_reps,1)';
+                line(repmat(stim_onset,2,1),yLine,'Color','black');
                 if r == 1
                     title(title_str,'fontweight','normal');
                 elseif r == 6
@@ -447,7 +476,8 @@ function numberOddball_Exp2(varargin)
                 freq_set = max(use_freqs)/2;
                 cond_set = length(cur_order);
                 curIdx = (use_freqs(1:end/2))+(t-1)*freq_set;
-                x_vals = repmat((1:freq_set),cond_set,1) + repmat(linspace(-bar_width,bar_width,cond_set),freq_set,1)';
+                bar_spacing = (0:bar_width:(bar_width*(cond_set-1))) - mean(0:bar_width:(bar_width*(cond_set-1)));
+                x_vals = repmat((1:freq_set),cond_set,1) + repmat(bar_spacing,freq_set,1)';
                 for c=1:length(cur_order)
                     if plotSNR
                         curRange = snrVals(curIdx,:,cur_order,1,opt.plotSplit+1);
@@ -466,34 +496,48 @@ function numberOddball_Exp2(varargin)
                     end
                     within_sig = arrayfun(@(x) curRCA(x).stats.tSqrdP(r,cur_order(c))<0.05, curIdx);
                     
-                    amp_h(c) = bar(x_vals(c,:), amp_vals,'BarWidth',bar_width,'edgecolor','none','facecolor',bold_colors(c,:));
+                    amp_h(c) = bar(x_vals(c,:), amp_vals,'BarWidth',bar_width,'edgecolor','none','facecolor',bold_colors(color_idx(c),:));
 
                     for z = 1:length(within_sig)
                         if within_sig(z)
                             patch_x = [ x_vals(c,z)-bar_width/2, x_vals(c,z)+bar_width/2, x_vals(c,z)+bar_width/2, x_vals(c,z)-bar_width/2];
                             patch_y = [0, 0, y_max, y_max];
-                            pa_h = patch(patch_x, patch_y, bold_colors(c,:),'edgecolor','none','facealpha',.25); 
+                            pa_h = patch(patch_x, patch_y, bold_colors(color_idx(c),:),'edgecolor','none','facealpha',.25); 
                             uistack(pa_h,'bottom');
                             %amp_h(c) = bar(x_vals(c,z), amp_vals(z), 'bar_width',bar_width, 'edgecolor', 'none', 'facecolor', weak_colors(c,:));
                         else
                         end
                     end
-
-                    if opt.ampTest == 0
-                        cur_p = squeeze(between_t2p(curIdx,r,opt.plotSplit+1,:,f));
-                    elseif opt.ampTest == 1
-                        cur_p = squeeze(AmptPval(curIdx,r,opt.plotSplit+1,:,f));
-                    elseif opt.ampTest == 2
-                        cur_p = squeeze(zSNRtPval(curIdx,r,opt.plotSplit+1,:,f));
+                end
+                % do between group tests
+                num_tests = size(between_t2p,4)/length(carriers);
+                test_idx = (1:num_tests)+(f-1)*num_tests;
+                if opt.ampTest == 0
+                    cur_p = squeeze(between_t2p(curIdx,r,opt.plotSplit+1,test_idx));
+                elseif opt.ampTest == 1
+                    cur_p = squeeze(AmptPval(curIdx,r,opt.plotSplit+1,test_idx));
+                elseif opt.ampTest == 2
+                    cur_p = squeeze(zSNRtPval(curIdx,r,opt.plotSplit+1,test_idx));
+                end
+                cur_sign = squeeze(between_sign(curIdx,r,opt.plotSplit+1,test_idx) == 1);
+                if do_exp == 2
+                    for c = 1:3
+                        between_idx = (cur_p(:,c) < 0.05) & (cur_sign(:,c) == 1);
+                        if any(between_idx)
+                            sig_x = [-.2, .2, 0];
+                            sig_y = [1.05,1.05,.95];
+                            sig_labels = {'1','3','N'};
+                            freq = find(between_idx);
+                            arrayfun(@(x) text(x+sig_x(c), y_max*sig_y(c),sig_labels{c},'fontsize',10,'HorizontalAlignment','center'), freq,'uni',false);
+                        end
                     end
-                    cur_sign = squeeze(between_sign(curIdx,r,opt.plotSplit+1,:,f) == 1);
-                    between_idx = (cur_p(:,c) < 0.05) & (cur_sign(:,c) == 1);
+                else
+                    between_idx = (cur_p < 0.05) & (cur_sign == 1);
+                    between_idx = between_idx + ((cur_p < 0.005) & (cur_sign == 1));
                     if any(between_idx)
-                        sig_x = [-.2, 0, .2];
-                        sig_y = [1.05,1.05,.95];
-                        sig_labels = {'1','3','N'};
-                        freq = find(between_idx);
-                        arrayfun(@(x) text(x+sig_x(c), y_max*sig_y(c),sig_labels{c},'fontsize',10,'HorizontalAlignment','center'), freq,'uni',false);
+                        arrayfun(@(x) text(x,y_max*.95,'*','fontsize',20,'HorizontalAlignment','center'), find(between_idx > 0),'uni',false);
+                        arrayfun(@(x) text(x,y_max*.85,'*','fontsize',20,'HorizontalAlignment','center'), find(between_idx == 2),'uni',false);
+                    else
                     end
                 end
                 
@@ -524,7 +568,7 @@ function numberOddball_Exp2(varargin)
                     title(title_str,'fontweight','normal','fontname','Helvetica','fontsize',fSize);
                 elseif r==6
                     if t==2
-                        lH = legend(amp_h,{'control','dist 1','dist 3'});
+                        lH = legend(amp_h, cond_names);
                         legend boxoff
                         l_pos = get(lH,'position');
                         l_pos(1) = l_pos(1) + .10;
@@ -575,18 +619,18 @@ function numberOddball_Exp2(varargin)
             trialLab = 'allTrials';
         end
         if plotSNR        
-            fig_name = sprintf('%s/%s_car%d_%s_snr.pdf',fig_location,data_type,carriers(f),rcaType);
+            fig_name = sprintf('%s/%s_car%d_%s_snr',fig_location,data_type,carriers(f),rcaType);
         else
-            if train_data == 0
-                fig_name = sprintf('%s/%s_car%d_%s_%s_%s.pdf',fig_location,data_type,carriers(f),rcaType,testplot,trialLab);
-            elseif train_data == 1
-                fig_name = sprintf('%s/%s_car%d_%s_%s_%s_%s.pdf',fig_location,data_type,carriers(f),rcaType,train_stim,testplot,trialLab);
-            elseif train_data == 2
-                fig_name = sprintf('%s/%s_car%d_%s_%s_%s_%s.pdf',fig_location,data_type,carriers(f),rcaType,train_stim,testplot,trialLab);
+            if opt.trainData == 0
+                fig_name = sprintf('%s/%s_car%d_%s_%s_%s',fig_location,data_type,carriers(f),rcaType,testplot,trialLab);
+            elseif opt.trainData == 1
+                fig_name = sprintf('%s/%s_car%d_%s_%s_%s_%s',fig_location,data_type,carriers(f),rcaType,train_stim,testplot,trialLab);
+            elseif opt.trainData == 2
+                fig_name = sprintf('%s/%s_car%d_%s_%s_%s_%s',fig_location,data_type,carriers(f),rcaType,train_stim,testplot,trialLab);
             else
             end
         end
-        export_fig(fig_name,'-pdf','-painters','-transparent',gcf);
+        export_fig(sprintf('%s.png', fig_name),'-png','-opengl','-m5','-transparent',gcf);
     end
 %% Test plot just one condition
 % close all
