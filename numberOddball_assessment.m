@@ -4,6 +4,7 @@ load('xDiva_params.mat');
 % add paths
 addpath(genpath('/Users/kohler/code/git/mrC/tools/colors'))
 addpath(genpath('/Users/kohler/code/git/export_fig'))
+addpath(genpath('/Users/kohler/code/git/stimulus_assessment'));
 addpath(genpath('./socmodel'))
 addpath('./minbound_suite')
 addpath(genpath('/Users/kohler/code/git/xDiva'))
@@ -25,25 +26,24 @@ model_sets = {'carr5_odd5', 'carr5_odd8', 'carr6_odd5', 'carr6_odd6', 'carr6_odd
 
 load_values = true;
 
+% run without prelude
+timing{3,2}=0;
+
 if ~load_values
-    % load bpfilter
-    load('stimuli.mat', 'bpfilter');
     global img_out; global seq_out;
     img_array = [];
     for o = 1:length(odd_vals)
         parameters{3}{11} = odd_vals{o};
         for c = 1:length(carr_vals)
             parameters{4}{11} = carr_vals{c};
-            close all;
             cur_set = (sprintf('carr%s_odd%s', carr_vals{c}, odd_vals{o}));
-            odd.(cur_set).size.val = []; odd.(cur_set).size.diff = [];
-            odd.(cur_set).density.val = []; odd.(cur_set).density.diff = [];
-            odd.(cur_set).area.val = []; odd.(cur_set).area.diff = [];
-            carr.(cur_set).size.val = []; carr.(cur_set).size.diff = [];
-            carr.(cur_set).density.val = []; carr.(cur_set).density.diff = [];
-            carr.(cur_set).area.val = []; carr.(cur_set).area.diff = [];
+            if ~ismember(cur_set ,model_sets)
+                continue;
+            else
+            end
+            close all;
             all_images = [];
-            for z = 1:10
+            for z = 1:20
                 pmf_FastOddball_Numerosity_testing('MakeMovie',parameters,timing,videoMode,1);
                 % reorder images
                 all_images = cat(3, all_images, squeeze(img_out(:,:,:,seq_out(seq_out>0))));
@@ -59,108 +59,51 @@ if ~load_values
 
             odd.(cur_set).images = all_images(:,:, val_idx == 1);
             carr.(cur_set).images = all_images(:,:, val_idx == 0);
-
-            % loop over images
-            s_vals = []; a_vals = [];
-            for i = 1:size(all_images,3)
-                temp_img = all_images(:,:,i);
-                mask = zeros(size(temp_img));
-                mask(temp_img ~= mode(temp_img(:))) = 1;
-                c_hull = bwconvhull(mask);
-                strct = regionprops(mask,'PixelList'); % coordinates of convex hull
-                test = strct.PixelList;
-                [bound_c,bound_r] = minboundcircle(test(:,1),test(:,2));                
-                dots = bwlabel(mask,4);
-                s_vals(i) = numel(mask);
-                for q = 1:(length(unique(dots))-1)
-                    temp_size = length(find(dots == q)); % just grab smallest dot (dot should be same size, but can overlap)
-                    % normalize by array size
-                    temp_size = temp_size./numel(mask) * 100;
-                    if s_vals(i) > temp_size
-                        s_vals(i) = temp_size;
-                    else
-                    end
-                end
-                s_vals(i) = temp_size(1);
-                a_vals(i) = length(find(c_hull == 1));
-                % use 'native' estimate:
-                % a_vals(i) = ceil(bound_r^2*pi);
-                % normalize by array size 
-                a_vals(i) = a_vals(i)./numel(mask) * 100;
-            end
-
-            a_diff = diff(a_vals);
-            s_diff = diff(s_vals);
-
-            num_vals = zeros(size(s_vals));
-            num_vals(val_idx == 1) = odd_vals{o};
-            num_vals(val_idx == 0) = carr_vals{c};
-            d_vals = (s_vals.*num_vals)./a_vals;
-            d_diff = diff(d_vals);
-
-            % area
-            odd.(cur_set).area.val = a_vals(val_idx==1);
-            odd.(cur_set).area.diff = a_diff(diff_idx==1);
-            carr.(cur_set).area.val = a_vals(val_idx==0);
-            carr.(cur_set).area.diff = a_diff(diff_idx==0);
-            % size
-            odd.(cur_set).size.val = s_vals(val_idx==1);
-            odd.(cur_set).size.diff = s_diff(diff_idx==1);
-            carr.(cur_set).size.val = s_vals(val_idx==0);
-            carr.(cur_set).size.diff = s_diff(diff_idx==0);
-            % density
-            odd.(cur_set).density.val = d_vals(val_idx==1);
-            odd.(cur_set).density.diff = d_diff(diff_idx==1);
-            carr.(cur_set).density.val = d_vals(val_idx==0);
-            carr.(cur_set).density.diff = d_diff(diff_idx==0);
-
-            if ismember(cur_set, model_sets)
-                sd_param = [0.9308, 1.0738, 1.4671, 2.1242];
-                n_param = [0.1814, 0.1285, 0.1195, 0.1152]; 
-                c_param = [0.9276, 0.9928, 0.9941, 0.9472];
-                cache = [];
-                
-                % downsample image to match Kendrick's images
-                kay_res = 256;
-                kay_fov = 12.7;
-                our_fov = 10;
-                %new_size = kay_res/kay_fov*our_fov; 
-                % actual size 201.5748, use 200;
-                new_size = 200;
-                new_images = imresize(all_images, [new_size, new_size]);
-                bg_val = mode(new_images(:));
-                filt_images = padarray(new_images, [new_size/5, new_size/5], bg_val, 'both'); 
-                filt_images = arrayfun(@(x) conv2(filt_images(:,:,x), bpfilter), 1:size(filt_images, 3),'uni',false);
-                crop_val =  (size(filt_images{1},1)-new_size)/2;
-                filt_images = cellfun(@(x) x(crop_val+1:crop_val+new_size,crop_val+1:crop_val+new_size), filt_images, 'uni', false);
-                filt_images = cell2mat(reshape(filt_images, [1, 1, size(filt_images,2)]));
-                for v = 1:4    
-                    [temp_resp,cache] = socmodel(filt_images,new_size,[],1.2,{new_size/4 -1 1 8 2 .01 2 0}, ...
-                                        1,.5, sd_param(v), 1/sd_param(v), n_param(v), c_param(v), cache);                      
-                    all_resp(:,v) = squeeze(mean(mean(temp_resp,1),2));
-                    if strcmp('carr6_odd6',cur_set)
-                        if v == 1
-                            example_image = new_images(:,:,1);
-                        else
-                        end
-                        example_resp(:,:,v) = temp_resp(:,:,1);
-                    else
-                    end
-                        
-                end
-                odd.(cur_set).resp.val = all_resp(val_idx==1, :);
-                carr.(cur_set).resp.val = all_resp(val_idx==0, :);
-                diff_resp = diff(all_resp);
-                odd.(cur_set).resp.diff = diff_resp(diff_idx==1, :);
-                carr.(cur_set).resp.diff = diff_resp(diff_idx==0, :);   
+            
+            % stimulus values
+            [stim_vals, e1] = number_assessment(all_images);
+            
+            % compute euclidean distances
+            % z-score across oddball and carrier (4 stimulus params, excluding number)
+            z_vals = zscore(stim_vals(:,1:4), 0, 1);
+            % compute the Euclidean norm across 4 params, for each sample
+            dist_vals = vecnorm(z_vals,2,2);
+            % add to stim values
+            stim_vals(:,6) = stim_vals(:,5);
+            stim_vals(:,5) = dist_vals; 
+            stim_diff = diff(stim_vals);
+            
+            if length(unique(stim_vals(:,6))) > 2
+                msg = '\n more than two numerosities in stimulus set \n';
+                error(msg);
             else
             end
-            clear all_images all_resp;
+            
+            % response values
+            our_fov = 10;
+            [resp_vals, e2] = soc_assessment(all_images, our_fov);
+            resp_diff = diff(resp_vals);
+  
+            % extract values and differences for odd and carrier
+            odd.(cur_set).stim.val = stim_vals(val_idx==1, :);
+            odd.(cur_set).stim.diff = stim_diff(diff_idx==1, :);    
+            carr.(cur_set).stim.val = stim_vals(val_idx==0, :);
+            carr.(cur_set).stim.diff = stim_diff(diff_idx==0, :);
+            odd.(cur_set).resp.val = resp_vals(val_idx==1, :);
+            odd.(cur_set).resp.diff = resp_diff(diff_idx==1, :);
+            carr.(cur_set).resp.val = resp_vals(val_idx==0, :);
+            carr.(cur_set).resp.diff = resp_diff(diff_idx==0, :); 
+            
+            % examples
+            example.(cur_set).input = e1.input;
+            example.(cur_set).hull = e1.hull;
+            example.(cur_set).resp = e2.resp;
+            clear all_images resp_* stim_*;
         end
     end
-    save('assessment_data.mat','odd','carr','example_*', '-v7.3');
+    save(sprintf('%s/assessment_data.mat', fig_folder), 'odd', 'carr', 'example', '-v7.3');
 else
-    load('assessment_data.mat','odd','carr', 'example_*');
+    load(sprintf('%s/assessment_data.mat', fig_folder), 'odd', 'carr', 'example');
 end
 
 %% figure params
@@ -176,27 +119,20 @@ text_params = {'fontsize', f_size, 'fontname', 'Helvetica','fontweight','normal'
 %% generate example images
 close all;
 figure;
-imagesc(example_resp(:,:,1),[0 1.5]); axis image tight; colormap(gray); title('V1 response', text_params{:}); axis off;
+subplot(1,3,1);
+imagesc(example.carr5_odd5.input(:,:,1),[0 254]); axis image tight; colormap(gray); title('input', text_params{:}); axis off;
+subplot(1,3,2);
+imagesc(example.carr5_odd5.hull,[0 254]); axis image tight; colormap(gray); title('stimulus (with convex hull)', text_params{:}); axis off;
+subplot(1,3,3);
+imagesc(example.carr5_odd5.resp(:,:,1),[0 1.5]); axis image tight; colormap(gray); title('V1 response', text_params{:}); axis off;
 set(gcf,'units','centimeters');
 fig_pos = get(gcf,'pos');
-fig_pos(3) = 20; fig_pos(4) = 20;
-set(gcf,'pos',fig_pos);
-export_fig(sprintf('%s/examples/response_example.pdf',fig_folder),'-transparent', '-nocrop');
-
-mask = zeros(size(example_image));
-mask(example_image ~= mode(example_image(:))) = 1;
-c_hull = bwconvhull(mask);            
-dots = bwlabel(mask,4);
-example_out = example_image;
-example_out(~c_hull) = 0.5;
-figure;
-imagesc(example_out,[0 254]); axis image tight; colormap(gray); title('stimulus (with convex hull)', text_params{:}); axis off;
-set(gcf,'units','centimeters');
-fig_pos = get(gcf,'pos');
-fig_pos(3) = 20; fig_pos(4) = 20;
+fig_pos(3) = 30; fig_pos(4) = 10;
 set(gcf,'pos',fig_pos);
 export_fig(sprintf('%s/examples/stimulus_example.pdf',fig_folder),'-transparent', '-nocrop');
 
+close all;
+figure;
 for c = 1:6
     if c == 6
         imshow(odd.carr8_odd5.images(:,:,1));
@@ -206,10 +142,11 @@ for c = 1:6
     axis off
     set(gcf,'units','centimeters');
     fig_pos = get(gcf,'pos');
-    fig_pos(3) = 20; fig_pos(4) = 20;
+    fig_pos(3) = 10; fig_pos(4) = 10;
     set(gcf,'pos',fig_pos);
     export_fig(sprintf('%s/examples/stimulus%d.png',fig_folder, c),'-png','-opengl','-m5','-transparent',gcf);
 end
+close all
 
 %% 
 
@@ -245,6 +182,186 @@ end
 % fig_pos = get(gcf,'pos');
 % fig_pos(3) = 20; fig_pos(4) = 10;
 % set(gcf,'pos',fig_pos);
+
+%% do correlations
+y_label = {'dot size', 'total dot area', 'convex hull', 'mean occupancy', 'euclidean distance', 'numerosity'};
+all_carr_stim = []; all_odd_stim = []; all_carr_resp = []; all_odd_resp = [];
+model_sets = {'carr5_odd5', 'carr5_odd8', 'carr6_odd5', 'carr6_odd6', 'carr6_odd9', 'carr8_odd5', 'carr8_odd8', 'carr8_odd9', 'carr9_odd6', 'carr9_odd9'};
+for m = 1:length(model_sets)
+    cur_set = model_sets{m};
+    all_carr_stim = cat(1, all_carr_stim, carr.(cur_set).stim.val);
+    all_odd_stim = cat(1, all_odd_stim, odd.(cur_set).stim.val);
+    all_carr_resp = cat(1, all_carr_resp, carr.(cur_set).resp.val);
+    all_odd_resp = cat(1, all_odd_resp, odd.(cur_set).resp.val);
+end
+figure;
+set(gcf,'units','centimeters');
+fig_pos = get(gcf,'pos');
+fig_pos(3) = 48; fig_pos(4) = 8;
+set(gcf,'pos',fig_pos);
+for z = 1:6
+    corr_r2(z) = corr([all_carr_stim(:,z); all_odd_stim(:,z)], ...
+         [all_carr_resp(:,1); all_odd_resp(:,1)]).^2;
+    subplot(1,6,z);
+    hold on
+    plot(all_carr_stim(:,z), all_carr_resp(:,1),'o','color', carr_color)
+    plot(all_odd_stim(:,z), all_odd_resp(:,1),'o','color', odd_color)
+    title(sprintf('%s \n (r^{2} = %.2f)',y_label{z}, corr_r2(z)), text_params{:});
+    switch z
+        case 6
+            xlabel('# dots',text_params{:});
+        case 5
+            xlabel('normalized distance',text_params{:});
+        case 4
+            xlabel('convex hull/# dots',text_params{:});
+        otherwise
+            xlabel('% of image pixels',text_params{:});
+            if z == 1
+                ylabel('SOC V1 response',text_params{:});
+            else
+            end
+    end
+    set(gca, 'ylim', [0,.15] , 'clipping','off', gcaOpts{:})
+    % set x-ticks
+    x_unit = min(diff(get(gca, 'xtick')));
+    x_lim = get(gca, 'xlim');
+    x_lim(1) = x_lim(1)-mod(x_lim(1),x_unit);
+    if mod(x_lim(2),x_unit)
+        x_lim(2) = x_lim(2)-mod(x_lim(2),x_unit)+x_unit;
+    else
+    end
+    set(gca, 'xlim', x_lim, 'xtick', x_lim(1):x_unit:x_lim(2));        
+    axis square
+    hold off
+end
+export_fig(sprintf('%s/assessment/correlation.pdf',fig_folder),'-transparent');
+
+
+%% full assessment, Experiment 2
+plot_values = false;
+y_label = {'dot size', 'total dot area', 'convex hull', 'mean occupancy', 'euclidean distance', 'numerosity'};
+y_lims = {[-1,1,.5],[-8,8,4],[-40,40,20],[-4,4,2],[-6,6,2], [-4,4,2]};
+
+figure;
+set(gcf,'units','centimeters');
+fig_pos = get(gcf,'pos');
+fig_pos(3) = 30; fig_pos(4) = 30;
+set(gcf,'pos',fig_pos);
+
+for a = 1:6
+    for z = 1:6
+        switch z
+            case 1
+                cur_set = 'carr8_odd5';
+                title_str = '5 odd, 8 carr';
+            case 2
+                cur_set = 'carr8_odd8';
+                title_str = '8 odd, 8 carr';
+            case 3
+                cur_set = 'carr8_odd9';
+                title_str = '9 odd, 8 carr';
+            case 4
+                cur_set = 'carr6_odd5';
+                title_str = '5 odd, 6 carr';
+            case 5
+                cur_set = 'carr6_odd6';
+                title_str = '6 odd, 6 carr';
+            case 6
+                cur_set = 'carr6_odd9';
+                title_str = '9 odd, 6 carr';
+            otherwise
+        end
+        subplot(6,6,z+(a-1)*6);
+        hold on
+        if plot_values
+            odd_plot = odd.(cur_set).stim.val(:,a);
+            carr_plot = carr.(cur_set).stim.val(:,a);
+        else
+            odd_plot = odd.(cur_set).stim.diff(:,a);
+            carr_plot = carr.(cur_set).stim.diff(:,a);
+        end
+        boxplot(odd_plot, 'positions',  1 , 'width', 1, 'color', odd_color, 'symbol', 'o' )
+        boxplot(carr_plot, 'positions', 2, 'width', 1, 'color', carr_color, 'symbol', 'o' )
+        x_min = 0; x_max = 3;
+        if max(abs([odd_plot; carr_plot])) > 10
+            y_max = ceil(max(abs([odd_plot; carr_plot]))/20)*20;
+            y_units = 10;
+        elseif max(abs([odd_plot; carr_plot])) > 1
+            y_max = ceil(max(abs([odd_plot; carr_plot]))/2)*2;
+            y_units = 1;
+        else
+            y_max = ceil(max(abs([odd_plot; carr_plot]))/.2)*.2;
+            y_units = .1;
+        end
+        if plot_values
+            y_min = 0;
+        else
+            y_min = -y_max;
+        end
+        if max([odd_plot; carr_plot]) == y_max
+            y_max = y_max + y_units;
+        else
+        end
+        if min([odd_plot; carr_plot]) == y_min
+            y_min = y_min - y_units;
+        else
+        end
+        while (y_max - y_min)/y_units >= 5
+            y_units = y_units * 2;
+        end
+        while (y_max - y_min)/y_units <= 3
+            y_units = y_units / 2;
+        end
+        
+        set(gca, 'xtick', [], 'xticklabels', {''})            
+        xlim([x_min,x_max]);
+        ylim([y_min,y_max]);
+        set(gca, 'ytick', y_min:y_units:y_max , 'clipping','off', gcaOpts{:})
+        if a == 1
+            title(title_str, text_params{:});
+        else
+        end 
+        if z == 1
+            switch a
+                case 6
+                    y_label{a} = sprintf('%s \n (# dots)',y_label{a});
+                case 5
+                     y_label{a} = sprintf('%s \n (normalized)',y_label{a});
+                case 4
+                    y_label{a} = sprintf('%s \n (convex hull/# dots)',y_label{a});
+                otherwise
+                    y_label{a} = sprintf('%s \n ',y_label{a});
+                    y_label{a} = [y_label{a}, '(% of image pixels)'];
+            end
+            y_lh = ylabel(y_label{a}, text_params{:}, 'position', [x_min-1.5, y_min+(y_max-y_min)*.5, 0]);
+        else
+        end
+        if a == 1
+            box_pos(:,z,a) = get(gca,'position');
+            if z > 1
+                box_pos([2,3,4],z,a) = box_pos([2,3,4],1,a);
+            else
+            end 
+        else
+            box_pos(:,z,a) = get(gca,'position');
+            % inherit box positions from scatter positions
+            box_pos([1,3,4],z,a) = box_pos([1,3,4],z,1);
+            if z > 1
+                box_pos(2,z,a) = box_pos(2,1,a);
+            else
+            end 
+            
+        end
+        set(gca,'position', box_pos(:,z,a));
+        ax_h(z,a) = gca;
+        hold off
+    end
+    g_ymin = min(cell2mat(arrayfun(@(x) min(get(x,'ytick')),ax_h(:,a),'uni',false)));
+    g_ymax = max(cell2mat(arrayfun(@(x) max(get(x,'ytick')),ax_h(:,a),'uni',false)));
+    g_yunit = max(cell2mat(arrayfun(@(x) min(diff(get(x,'ytick'))),ax_h(:,a),'uni',false)));
+    arrayfun(@(x) set(x,'ytick',g_ymin:g_yunit:g_ymax, 'ylim',[g_ymin,g_ymax]), ax_h(:,a),'uni',false);
+end
+export_fig(sprintf('%s/assessment/full_assessment_exp2.pdf',fig_folder),'-transparent');
 
 %% size and area plotting, Experiment 2
 figure;
@@ -283,8 +400,8 @@ for z = 1:6
     end
     
     hold on
-    plot(carr.(cur_set).size.diff, carr.(cur_set).area.diff,'o', 'color', carr_color); 
-    plot(odd.(cur_set).size.diff, odd.(cur_set).area.diff,'o', 'color', odd_color); 
+    plot(carr.(cur_set).stim.diff(:,1), carr.(cur_set).stim.diff(:,3),'o', 'color', carr_color); 
+    plot(odd.(cur_set).stim.diff(:,1), odd.(cur_set).stim.diff(:,3),'o', 'color', odd_color); 
     x_min = -1; x_max = 1; x_units = .5;
     y_min = -30; y_max = 30; y_units = 10;
     xlim([x_min,x_max]);
@@ -324,20 +441,15 @@ for z = 1:6
     else
         subplot(4,3,z+3);
     end
-    z_size = zscore([carr.(cur_set).size.diff, odd.(cur_set).size.diff]);
-    z_area = zscore([carr.(cur_set).area.diff, odd.(cur_set).area.diff]);
-    z_dist = sqrt(z_size.^2 + z_area.^2);
-    carr_dist = z_dist(1:length(carr.(cur_set).size.diff));
-    odd_dist = z_dist(length(carr.(cur_set).size.diff)+1:end);
     
     hold on
     for p = 1:2
         if p == 1
             cur_color = odd_color;
-            cur_dist = odd_dist;
+            cur_dist = odd.(cur_set).stim.diff(:,5);
         else
             cur_color = carr_color;
-            cur_dist = carr_dist;
+            cur_dist = carr.(cur_set).stim.diff(:,5);
         end
         b_h = boxplot(gca, cur_dist, 'positions', p ,'symbol', 'o',  'width', .75, 'color', cur_color, 'boxstyle' ,'outline');
         set(findobj(b_h,'tag','Upper Whisker'),'linestyle', '-', 'color', cur_color);
@@ -490,8 +602,8 @@ for z = 1:8
         subplot(4,4,z);
     end
     hold on
-    plot(carr.(cur_set).size.diff, carr.(cur_set).area.diff,'o', 'color', carr_color); 
-    plot(odd.(cur_set).size.diff, odd.(cur_set).area.diff,'o', 'color', odd_color); 
+    plot(carr.(cur_set).stim.diff(:,1), carr.(cur_set).stim.diff(:,3),'o', 'color', carr_color); 
+    plot(odd.(cur_set).stim.diff(:,1), odd.(cur_set).stim.diff(:,3),'o', 'color', odd_color); 
     
     x_min = -1; x_max = 1; x_units = .5;
     y_min = -30; y_max = 30; y_units = 10;
@@ -533,21 +645,15 @@ for z = 1:8
     else
         subplot(4,4,z+4);
     end
-    hold on
-    z_size = zscore([carr.(cur_set).size.diff, odd.(cur_set).size.diff]);
-    z_area = zscore([carr.(cur_set).area.diff, odd.(cur_set).area.diff]);
-    z_dist = sqrt(z_size.^2 + z_area.^2);
-    carr_dist = z_dist(1:length(carr.(cur_set).size.diff));
-    odd_dist = z_dist(length(carr.(cur_set).size.diff)+1:end);
     
     hold on
     for p = 1:2
         if p == 1
             cur_color = odd_color;
-            cur_dist = odd_dist;
+            cur_dist = odd.(cur_set).stim.diff(:,5);
         else
             cur_color = carr_color;
-            cur_dist = carr_dist;
+            cur_dist = carr.(cur_set).stim.diff(:,5);
         end
         b_h = boxplot(gca, cur_dist, 'positions', p ,'symbol', 'o',  'width', .75, 'color', cur_color, 'boxstyle' ,'outline');
         set(findobj(b_h,'tag','Upper Whisker'),'linestyle', '-', 'color', cur_color);
