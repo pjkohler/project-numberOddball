@@ -9,7 +9,7 @@ addpath(genpath('./socmodel'))
 addpath('./minbound_suite')
 addpath(genpath('/Users/kohler/code/git/xDiva'))
 
-fig_folder = '/Users/kohler/Dropbox/WRITING/Articles/2019_KohlerNumerositySSVEP/figures';
+fig_folder = '/Users/kohler/Google Drive/Dropbox/WRITING/Articles/2019_KohlerNumerositySSVEP/figures';
 
 carr_vals = {'5','6','8','9'};
 odd_vals = {'5','6','8','9'};
@@ -24,7 +24,7 @@ odd_vals = {'5','6','8','9'};
 
 model_sets = {'carr5_odd5', 'carr5_odd8', 'carr6_odd5', 'carr6_odd6', 'carr6_odd9', 'carr8_odd5', 'carr8_odd8', 'carr8_odd9', 'carr9_odd6', 'carr9_odd9'};
 
-load_values = true;
+load_values = false;
 
 % run without prelude
 timing{3,2}=0;
@@ -237,48 +237,73 @@ end
 export_fig(sprintf('%s/assessment/correlation.pdf',fig_folder),'-transparent');
 
 
-%% full assessment, Experiment 2
+%% full assessment, all stimuli 
+close all;
 plot_values = false;
 y_label = {'dot size', 'total dot area', 'convex hull', 'mean occupancy', 'euclidean distance', 'numerosity'};
 y_lims = {[-1,1,.5],[-8,8,4],[-40,40,20],[-4,4,2],[-6,6,2], [-4,4,2]};
 
-figure;
+figure
 set(gcf,'units','centimeters');
 fig_pos = get(gcf,'pos');
-fig_pos(3) = 30; fig_pos(4) = 30;
+fig_pos(3) = 50; fig_pos(4) = 25;
 set(gcf,'pos',fig_pos);
 
-for a = 1:6
-    for z = 1:6
+a_idx = [1,2,3,4,6];
+
+for a = 1:length(a_idx)
+    for z = 1:10
         switch z
             case 1
-                cur_set = 'carr8_odd5';
-                title_str = '5 odd, 8 carr';
+                cur_set = 'carr5_odd5';
+                title_str = '5 odd, 5 carr';
+                plot_spacing = .1;
             case 2
-                cur_set = 'carr8_odd8';
-                title_str = '8 odd, 8 carr';
+                cur_set = 'carr5_odd8';
+                title_str = '8 odd, 5 carr';
+                plot_spacing = .1;
             case 3
-                cur_set = 'carr8_odd9';
-                title_str = '9 odd, 8 carr';
-            case 4
                 cur_set = 'carr6_odd5';
                 title_str = '5 odd, 6 carr';
-            case 5
+                plot_spacing = .3;
+            case 4
                 cur_set = 'carr6_odd6';
                 title_str = '6 odd, 6 carr';
-            case 6
+                plot_spacing = .1;
+            case 5
                 cur_set = 'carr6_odd9';
                 title_str = '9 odd, 6 carr';
+                plot_spacing = .1;
+            case 6 
+                cur_set = 'carr8_odd9';
+                title_str = '9 odd, 8 carr';
+                plot_spacing = .3;
+            case 7 
+                cur_set = 'carr8_odd8';
+                title_str = '8 odd, 8 carr';
+                plot_spacing = .1;
+            case 8
+                cur_set = 'carr8_odd5';
+                title_str = '5 odd, 8 carr';
+                plot_spacing = .1;
+            case 9
+                cur_set = 'carr9_odd9';
+                title_str = '9 odd, 9 carr';
+                plot_spacing = .3;
+            case 10
+                cur_set = 'carr9_odd6';
+                title_str = '6 odd, 9 carr';
+                plot_spacing = .1;
             otherwise
         end
-        subplot(6,6,z+(a-1)*6);
+        subplot(length(a_idx),10,z+(a-1)*10);
         hold on
         if plot_values
-            odd_plot = odd.(cur_set).stim.val(:,a);
-            carr_plot = carr.(cur_set).stim.val(:,a);
+            odd_plot = odd.(cur_set).stim.val(:,a_idx(a));
+            carr_plot = carr.(cur_set).stim.val(:,a_idx(a));
         else
-            odd_plot = odd.(cur_set).stim.diff(:,a);
-            carr_plot = carr.(cur_set).stim.diff(:,a);
+            odd_plot = odd.(cur_set).stim.diff(:,a_idx(a));
+            carr_plot = carr.(cur_set).stim.diff(:,a_idx(a));
         end
         boxplot(odd_plot, 'positions',  1 , 'width', 1, 'color', odd_color, 'symbol', 'o' )
         boxplot(carr_plot, 'positions', 2, 'width', 1, 'color', carr_color, 'symbol', 'o' )
@@ -322,24 +347,27 @@ for a = 1:6
         else
         end 
         if z == 1
-            switch a
+            switch a_idx(a)
                 case 6
-                    y_label{a} = sprintf('%s \n (# dots)',y_label{a});
+                    y_label{a_idx(a)} = sprintf('%s \n (# dots)',y_label{a_idx(a)});
                 case 5
-                     y_label{a} = sprintf('%s \n (normalized)',y_label{a});
+                     y_label{a_idx(a)} = sprintf('%s \n (normalized)',y_label{a_idx(a)});
                 case 4
-                    y_label{a} = sprintf('%s \n (convex hull/# dots)',y_label{a});
+                    y_label{a_idx(a)} = sprintf('%s \n (convex hull/# dots)',y_label{a_idx(a)});
                 otherwise
-                    y_label{a} = sprintf('%s \n ',y_label{a});
-                    y_label{a} = [y_label{a}, '(% of image pixels)'];
+                    y_label{a_idx(a)} = sprintf('%s \n ',y_label{a_idx(a)});
+                    y_label{a_idx(a)} = [y_label{a_idx(a)}, '(% of image pixels)'];
             end
-            y_lh = ylabel(y_label{a}, text_params{:}, 'position', [x_min-1.5, y_min+(y_max-y_min)*.5, 0]);
+            y_lh = ylabel(y_label{a_idx(a)}, text_params{:}, 'position', [x_min-1.5, y_min+(y_max-y_min)*.5, 0]);
+             
         else
+            set(gca, 'yticklabels', {''}) 
         end
         if a == 1
             box_pos(:,z,a) = get(gca,'position');
             if z > 1
                 box_pos([2,3,4],z,a) = box_pos([2,3,4],1,a);
+                box_pos(1,z,a) = box_pos(1,z-1,a)+box_pos(3,z-1,a)*(1+plot_spacing);
             else
             end 
         else
@@ -348,6 +376,7 @@ for a = 1:6
             box_pos([1,3,4],z,a) = box_pos([1,3,4],z,1);
             if z > 1
                 box_pos(2,z,a) = box_pos(2,1,a);
+               
             else
             end 
             
@@ -361,8 +390,107 @@ for a = 1:6
     g_yunit = max(cell2mat(arrayfun(@(x) min(diff(get(x,'ytick'))),ax_h(:,a),'uni',false)));
     arrayfun(@(x) set(x,'ytick',g_ymin:g_yunit:g_ymax, 'ylim',[g_ymin,g_ymax]), ax_h(:,a),'uni',false);
 end
-export_fig(sprintf('%s/assessment/full_assessment_exp2.pdf',fig_folder),'-transparent');
+export_fig(sprintf('%s/assessment/full_assessment_all.pdf',fig_folder),'-transparent');
 
+%% response, all stimuli
+
+figure;
+set(gcf,'units','centimeters');
+fig_pos = get(gcf,'pos');
+fig_pos(3) = 25; fig_pos(4) = 25;
+set(gcf,'pos',fig_pos);
+
+y_label = {'dot size', 'total dot area', 'convex hull', 'mean occupancy', 'euclidean distance', 'numerosity'};
+
+for z = 1:10
+    switch z
+        case 1
+            cur_set = 'carr5_odd5';
+            title_str = '5 odd, 5 carr';
+            sub_pos = 2;
+        case 2
+            cur_set = 'carr5_odd8';
+            title_str = '8 odd, 5 carr';
+            sub_pos = 3;
+        case 3
+            cur_set = 'carr6_odd5';
+            title_str = '5 odd, 6 carr';
+            sub_pos = 4;
+        case 4
+            cur_set = 'carr6_odd6';
+            title_str = '6 odd, 6 carr';
+             sub_pos = 5;
+        case 5
+            cur_set = 'carr6_odd9';
+            title_str = '9 odd, 6 carr';
+             sub_pos = 6;
+        case 6 
+            cur_set = 'carr8_odd9';
+            title_str = '9 odd, 8 carr';
+            sub_pos = 7;
+        case 7 
+            cur_set = 'carr8_odd8';
+            title_str = '8 odd, 8 carr';
+            sub_pos = 8;
+        case 8
+            cur_set = 'carr8_odd5';
+            title_str = '5 odd, 8 carr';
+            sub_pos = 9;
+        case 9
+            cur_set = 'carr9_odd9';
+            title_str = '9 odd, 9 carr';
+            sub_pos = 11;
+        case 10
+            cur_set = 'carr9_odd6';
+            title_str = '6 odd, 9 carr';
+            sub_pos = 12;
+        otherwise
+    end
+    subplot(4,3,sub_pos);
+    hold on;
+    % adjust values
+    mean_values = mean(cat(1, odd.(cur_set).resp.val, carr.(cur_set).resp.val));
+    odd_resp = odd.(cur_set).resp.diff./repmat(mean_values,size(odd.(cur_set).resp.diff,1),1).*100;
+    carr_resp = carr.(cur_set).resp.diff./repmat(mean_values,size(carr.(cur_set).resp.diff,1),1).*100;
+    
+    hold on
+    boxplot(odd_resp, 'positions',  (1:4)-.15 , 'width', .3, 'color', odd_color, 'symbol', 'o' )
+    boxplot(carr_resp, 'positions', (1:4)+.15, 'width', .3, 'color', carr_color, 'symbol', 'o' )
+    x_min = 0.5; x_max = 4.5; x_units = 1;
+    y_min = -60; y_max = 60; y_units = 20;
+    xlim([x_min,x_max]);
+    ylim([y_min,y_max]);
+    set(gca, 'xtick', 1:4, 'ytick', y_min:y_units:y_max , 'xticklabels', {'V1','V2','V3','V4'}, 'clipping','off', gcaOpts{:})
+    text(mean(get(gca, 'xtick')), y_max*.95, title_str, text_params{:})
+    if sub_pos == 2
+        text(x_min+(x_max-x_min)*.5, y_max+(y_max-y_min)*.2, sprintf('change from previous image update (%s vs %s)', odd_string, carr_string), text_params{:});
+    elseif sub_pos == 11
+        %tH = text(x_min-(x_max-x_min)*.3, y_max+(y_max-y_min)*.4, 'SOC model response (% of mean)', text_params{:});
+        %set(tH, 'rotation', 90);
+        ylabel([sprintf('%s\n', 'SOC model response'),'(% of mean)'], text_params{:});
+    else
+    end
+    ax_pos(:,z) = get(gca,'position');
+    if z > 1
+        ax_pos(3:4,z) = ax_pos(3:4,1);
+    end
+    if ismember(sub_pos, [3,5,6,8,9,12])
+        ax_pos(3:4,z) = ax_pos(3:4,z-1);
+        ax_pos(2,z) = ax_pos(2,z-1);
+        ax_pos(1,z) = ax_pos(1,z-1)+ax_pos(3,z-1)*1.3;
+    else
+    end
+    if ismember(sub_pos, [5,8,11])
+        ax_pos(1,z) = ax_pos(1,1);
+    elseif ismember(sub_pos, [6,9,12])
+        ax_pos(1,z) = ax_pos(1,2);
+    elseif ismember(sub_pos, [4,7])
+        ax_pos(1,z) = ax_pos(1,1)-ax_pos(3,1)*1.3;
+    end
+    set(gca,'position',ax_pos(:,z));
+end
+export_fig(sprintf('%s/assessment/response_all.pdf',fig_folder),'-transparent');
+    
 %% size and area plotting, Experiment 2
 figure;
 set(gcf,'units','centimeters');

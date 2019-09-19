@@ -21,7 +21,7 @@ options(width = 1800, show.signif.stars = TRUE)
 ```
 # NUMEROSITY ANALYSIS RESULTS
 ```{r, echo=TRUE, warning=FALSE, message=FALSE, fig.width=6, fig.height=3}
-top_folder = '/Users/kohler/Dropbox/WRITING/Articles/2019_KohlerNumerositySSVEP/figures/results/experiment1'
+top_folder = '/Users/kohler/Google Drive/Dropbox/WRITING/Articles/2019_KohlerNumerositySSVEP/figures/results/experiment1'
 counter = 0
 for (f in c(1,2,3)) {
   for (q in c(1,2,3,4)) {
@@ -48,12 +48,21 @@ for (f in c(1,2,3)) {
     m2 <- lmer(data ~ cond + harm + (1|subject), cur_data)
     if (isSingular(m1)) {
       if (isSingular(m2)) {
-        cat("WARNING: BOTH MODELS ARE SINGULAR!\n\n")
+        cat("WARNING: BOTH MODELS ARE SINGULAR!   ")
       } else {
-        cat("WARNING: MODEL1 IS SINGULAR, BUT MODEL2 IS NOT!\n\n")
+        cat("WARNING: MODEL1 IS SINGULAR, BUT MODEL2 IS NOT!   ")
       }
     } else {
-      cat("LOVELY: NONE OF THE MODELS ARE SINGULAR!\n\n")
+      cat("LOVELY: NONE OF THE MODELS ARE SINGULAR!   ")
+    }
+    if (!converge_ok(m1)) {
+      if (!converge_ok(m2)) {
+        cat("WARNING: BOTH MODELS DID NOT CONVERGE!\n\n")
+      } else {
+        cat("WARNING: MODEL1 DID NOT CONVERGE, BUT MODEL2 DID!\n\n")
+      }
+    } else {
+      cat("LOVELY: BOTH MODELS CONVERGED!\n\n")
     }
     cat("ANOVA TEST FOR MAIN EFFECTS AND INTERACTIONS\n")
     print(anova(m1), type='pdf')

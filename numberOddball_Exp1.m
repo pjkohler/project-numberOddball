@@ -54,12 +54,12 @@ function numberOddball_Exp1(varargin)
 
     %% VARIABLES THAT CAN BE CHANGED
     do_exp = 1;
-    top_folder = sprintf('/Volumes/Denali_DATA1/kohler/EEG_EXP/DATA/numeroOddball/Experiment%.0d',do_exp);
+    top_folder = sprintf('/Volumes/GoogleDrive/My Drive/numeroOddball/Experiment%.0d',do_exp);
     cond_names = {'dist 3','control'};
 
     %% IDENTIFY DATA LOCATION
-    data_location = sprintf('/Users/kohler/Dropbox/WRITING/Articles/2019_KohlerNumerositySSVEP/figures/results/experiment%.0d/%s', do_exp, opt.data_type);
-    fig_location = sprintf('/Users/kohler/Dropbox/WRITING/Articles/2019_KohlerNumerositySSVEP/figures/results/experiment%.0d', do_exp);
+    data_location = sprintf('/Users/kohler/Google Drive/Dropbox/WRITING/Articles/2019_KohlerNumerositySSVEP/figures/results/experiment%.0d/%s', do_exp, opt.data_type);
+    fig_location = sprintf('/Users/kohler/Google Drive/Dropbox/WRITING/Articles/2019_KohlerNumerositySSVEP/figures/results/experiment%.0d', do_exp);
     if ~exist(data_location,'dir')
         mkdir(data_location);
     else
@@ -102,7 +102,7 @@ function numberOddball_Exp1(varargin)
     if ~opt.launch_rca % if users says analysis is not to be launched
         temp_name = subfiles(sprintf('%s/rca_data*.mat', data_location),1);
         temp_name = temp_name{end}; % grab newest file and loose .mat suffix;
-        load(save_name);
+        load(temp_name);
     else
         for f = 1:length(folder_names)
             temp_folders = subfolders(folder_names{f},1);
@@ -190,25 +190,7 @@ function numberOddball_Exp1(varargin)
         for c = 1:size(curRCA,1)
             for f = 1:size(curRCA,2)
                 fprintf('\n ... freq no. %0.0f ...\n',f);
-                rcStruct = aggregateData(curRCA(c,f),keepConditions,errorType,opt.trial_error,doNR);
-                % RC
-                curRCA(c,f).stats.Amp = squeeze(rcStruct.ampBins(1,:,:,:));
-                curRCA(c,f).stats.SubjectAmp = squeeze(rcStruct.subjectAmp(1,:,:,:,:));
-                curRCA(c,f).stats.SubjectAmp_projected = squeeze(rcStruct.subjectAmp_projected(1,:,:,:,:));
-                curRCA(c,f).stats.ErrLB = squeeze(rcStruct.ampErrBins(1,:,:,:,1));
-                curRCA(c,f).stats.ErrUB = squeeze(rcStruct.ampErrBins(1,:,:,:,2));
-                curRCA(c,f).stats.NoiseAmp = squeeze(rcStruct.ampNoiseBins(1,:,:,:));
-                curRCA(c,f).stats.SubjectNoiseAmp = squeeze(rcStruct.subjectAmpNoise(1,:,:,:,:));
-                % within group t-squared values
-                curRCA(c,f).stats.tSqrdP = squeeze(rcStruct.tSqrdP(1,:,:,:));
-                curRCA(c,f).stats.tSqrdSig = squeeze(rcStruct.tSqrdSig(1,:,:,:));
-                curRCA(c,f).stats.tSqrdVal = squeeze(rcStruct.tSqrdVal(1,:,:,:));
-                % within group t-test values
-                [curRCA(c,f).stats.tstatSig, curRCA(c,f).stats.tstatP, ci, sts] = ... 
-                    ttest(squeeze(rcStruct.subjectAmp_projected(1,:,:,:,:)),0,'alpha',0.05,'dim',2,'tail','right');
-                curRCA(c,f).stats.tstatSig = squeeze(curRCA(c,f).stats.tstatSig);
-                curRCA(c,f).stats.tstatP = squeeze(curRCA(c,f).stats.tstatP);
-                curRCA(c,f).stats.tstatVal = squeeze(sts.tstat);
+                curRCA(c,f) = aggregateData(curRCA(c,f), keepConditions, errorType, opt.trial_error, doNR);
             end
             % axx_rca_full
             n_tps = size(curAxxRCA(c).Projected{1,1},1);
@@ -247,16 +229,16 @@ function numberOddball_Exp1(varargin)
                     if rc_type == 1
                         [rca_data_real,rca_data_imag] = getRealImag(rca_full(fPair,f).data);
                         [comp_data_real,comp_data_imag] = getRealImag(rca_full(fPair,f).comparisonData);
-                        rca_proj = squeeze(rca_full(fPair,f).stats.SubjectAmp_projected);
+                        rca_proj = squeeze(rca_full(fPair,f).subjects.proj_amp_signal);
                     else
                         if f > length(rca_odd)
                             [rca_data_real,rca_data_imag] = getRealImag(rca_carr(fPair,f-length(rca_odd)).data);
                             [comp_data_real,comp_data_imag] = getRealImag(rca_carr(fPair,f-length(rca_odd)).comparisonData);
-                            rca_proj = squeeze(rca_split(fPair,f-length(rca_odd)).stats.SubjectAmp_projected);
+                            rca_proj = squeeze(rca_split(fPair,f-length(rca_odd)).subjects.proj_amp_signal);
                         else
                             [rca_data_real,rca_data_imag] = getRealImag(rca_odd(fPair,f).data);
                             [comp_data_real,comp_data_imag] = getRealImag(rca_odd(fPair,f).comparisonData);
-                            rca_proj = squeeze(rca_split(fPair,f).stats.SubjectAmp_projected);
+                            rca_proj = squeeze(rca_split(fPair,f).subjects.proj_amp_signal);
                         end
                     end
                     % concatenate comparison and rca data
@@ -293,25 +275,24 @@ function numberOddball_Exp1(varargin)
     
     %% NEW PLOTTING
     close all
-    axx_ticks = [0 500 1000 1500 2000];
     
     % significance colors
     p_colormap = jmaColors('pval');
     p_colormap(end,:) = [1 1 1];
     
     lWidth = 1;
-    fSize = 10;
-    gcaOpts = {'tickdir','out','ticklength',[0.0200,0.0200],'box','off','fontsize',fSize,'fontname','Helvetica','linewidth',lWidth};
+    fSize = 12;
+    text_opts = {'fontweight','normal','fontname','Helvetica','fontsize',fSize};
+    gcaOpts = [{'tickdir','out','ticklength',[0.0200,0.0200],'box','off','linewidth',lWidth}, text_opts];
 
     yFigs = 2;
+    color_max = 0.3;
 
     if opt.plot_split == 0    
         xFigs = 5;
     else
         xFigs = 8;
     end
-    figHeight = yFigs * 6;
-    figWidth = xFigs * 6;
 
     clear egiH;
     
@@ -320,54 +301,75 @@ function numberOddball_Exp1(varargin)
     weak_colors = c_brewer.rgb20([10,4,6,14],:);
     bar_width = 0.3;
     color_idx = [3,1];
-    for f = 1:3 % frequency pairs
+    
+    fig_label = {'A','B','C','D','E','F','G','H','I','J'};
+    
+    num_pairs = 3;
+    
+    figHeight = yFigs * num_pairs * 6;
+    figWidth = xFigs * 6;
+    
+    figure;
+
+    set(gcf, 'units', 'centimeters');
+    figPos = get(gcf,'pos');
+    figPos(4) = figHeight;
+    figPos(3) = figWidth;
+    set(gcf,'pos',figPos);
+    
+    pair_labels = {'6 & 1 Hz', '3.75 & 0.75 Hz', '3 & 0.5 Hz'};
+
+    for f = 1:num_pairs % frequency pairs
+        if f == 3
+             axx_ticks = 0:500:2000;
+        elseif f == 2
+            axx_ticks = 0:200:1200;
+        elseif  f == 1
+            axx_ticks = 0:200:1000;
+        else
+        end
         % Axx xVals
         nTps = size(axx_rca_full(f).ProjMat,1);
         axx_xvals = linspace(0, 1000/carrier_freq(f) * axx_reps(f) , nTps+1);
         axx_xvals = axx_xvals(2:end);
         stim_onset = axx_xvals(floor(linspace(1,length(axx_xvals),axx_reps(f) + 1)));
         stim_onset = stim_onset(1:end-1);
-        figure;
-        for r = 1:yFigs 
+        for r = 1:yFigs
+            row_no = (r-1)*num_pairs+f;   
             if r < 6            
                 if opt.plot_split == 0
                     curRCA = rca_full(f,:);
-                    egiH(r,1) = subplot(yFigs,xFigs,(xFigs-2)+(r-1)*xFigs);
+                    egiH(r,1) = subplot(yFigs*num_pairs,xFigs,(xFigs-2)+(row_no-1)*xFigs);
                     hold on
-                    rcaColorBar = [min(curRCA(1).A(:,r)),max(curRCA(1).A(:,r))];
-                    newExtreme = round(max(abs(rcaColorBar))*10)/10;
-                    rcaColorBar = [-newExtreme,newExtreme];
-                    [~, colorH] = mrC.plotOnEgi(curRCA(1).A(:,r),rcaColorBar, r==yFigs);
+                    [~, colorH] = mrC.plotOnEgi(curRCA(1).A(:,r),[-color_max, color_max], r==yFigs);
                     rcaType = 'full';
                 else
                     curRCA = rca_split(f,:);
-                    egiH(r,1) = subplot(yFigs,xFigs,3+(r-1)*xFigs);
+                    egiH(r,1) = subplot(yFigs*num_pairs,xFigs,3+(row_no-1)*xFigs);
                     hold on
-                    rcaColorBar = [min(curRCA(1).A(:,r)),max(curRCA(1).A(:,r))];
-                    newExtreme = round(max(abs(rcaColorBar))*10)/10;
-                    rcaColorBar = [-newExtreme,newExtreme];
-                    [~, colorH(1)] = mrC.plotOnEgi(curRCA(1).A(:,r),rcaColorBar, r==yFigs);
+                    [~, colorH(1)] = mrC.plotOnEgi(curRCA(1).A(:,r), [-color_max, color_max], r==yFigs);
                     hold off
-                    egiH(r,2) = subplot(yFigs,xFigs,(xFigs-2)+(r-1)*xFigs);
+                    egiH(r,2) = subplot(yFigs*num_pairs,xFigs,(xFigs-2)+(row_no-1)*xFigs);
                     hold on
-                    rcaColorBar = [min(curRCA(5).A(:,r)),max(curRCA(1).A(:,r))];
-                    newExtreme = max(abs(rcaColorBar));
-                    rcaColorBar = [-newExtreme,newExtreme];
-                    [~, colorH(2)] = mrC.plotOnEgi(curRCA(5).A(:,r),rcaColorBar, r==yFigs);
+                    [~, colorH(2)] = mrC.plotOnEgi(curRCA(5).A(:,r),[-color_max, color_max], r==yFigs);
                     rcaType = 'split';
                 end
                 if r == yFigs
                     for z = 1:length(colorH)
-                        set(colorH(z),'units','centimeters','location','north','fontsize',12);
+                        set(colorH(z),'units','centimeters','location','south', text_opts{:}, 'xtick', [-color_max:.1:color_max]);
                         color_pos = get(colorH(z),'position');
-                        color_pos(1) = color_pos(1) + color_pos(3)*2.1; 
-                        color_pos(2) = color_pos(2) - color_pos(4)*10.2;
-                        color_pos(4) = color_pos(4) * 0.7;
-                        color_pos(3) = color_pos(3) * 1.5;
+                        color_pos(1) = color_pos(1) - color_pos(3)*.6; 
+                        color_pos(2) = color_pos(2) - color_pos(4)*3.5;
+                        color_pos(3) = color_pos(3) * 2;
                         set(colorH(z),'position', color_pos, 'AxisLocation','out'); 
+                        if f ~= num_pairs
+                            set(colorH(z),'visible','off');
+                        else
+                        end
                     end
                 else
                 end
+                arrayfun(@(x) uistack(x,'bottom'), egiH(r,:));
                 hold off
             else
             end
@@ -376,17 +378,16 @@ function numberOddball_Exp1(varargin)
             for z = 1:2
                 if opt.plot_split == 0
                     % full axx
-                    subplot(yFigs,xFigs,xFigs+(r-1)*xFigs);
-                    subplot(yFigs,xFigs,[(xFigs-1)+(r-1)*xFigs, xFigs+(r-1)*xFigs]);
+                    subplot(yFigs*num_pairs,xFigs,[(xFigs-1)+(row_no-1)*xFigs, xFigs+(row_no-1)*xFigs]);
                     cur_axx = axx_rca_full(f);
                     title_str = 'single cycle waveform';
                 else
                     if z == 1
-                        subplot(yFigs,xFigs,[1+(r-1)*xFigs, 2+(r-1)*xFigs]);
+                        subplot(yFigs*num_pairs,xFigs,[1+(row_no-1)*xFigs, 2+(row_no-1)*xFigs]);
                         cur_axx = axx_rca_odd(f);
                         title_str = 'single cycle waveform (odd)';
                     else
-                        subplot(yFigs,xFigs,[(xFigs-1)+(r-1)*xFigs,xFigs+(r-1)*xFigs]);
+                        subplot(yFigs*num_pairs,xFigs,[(xFigs-1)+(row_no-1)*xFigs,xFigs+(row_no-1)*xFigs]);
                         cur_axx = axx_rca_carr(f);
                         title_str = 'single cycle waveform (carrier)';
                     end
@@ -395,6 +396,8 @@ function numberOddball_Exp1(varargin)
                 errorToPLot = squeeze(cur_axx.sem(:,:,r));
                 axx_ymin = floor(min((min(cur_axx.avg(:,:,r)-cur_axx.sem(:,:,r)))/2))*2;
                 axx_ymax = ceil(max((max(cur_axx.avg(:,:,r)+cur_axx.sem(:,:,r)))/2))*2;
+                axx_ymax = max(abs([axx_ymin, axx_ymax]));
+                axx_ymin = -axx_ymax;
                 axx_xmin = 0;
                 axx_xmax = max(axx_xvals);
                 sig_pos(1) = axx_ymax;
@@ -414,10 +417,10 @@ function numberOddball_Exp1(varargin)
                 set(gca,gcaOpts{:},'xtick',axx_ticks,'xticklabel',cellfun(@(x) num2str(x),num2cell(axx_ticks),'uni',false),'ytick',axx_ymin:axx_yunit:axx_ymax);
                 yLine = repmat(get(gca,'YLim'),axx_reps(f),1)';
                 line(repmat(stim_onset,2,1),yLine,'Color','black');
-                if r == 1
-                    title(title_str,'fontweight','normal');
-                elseif r == yFigs
-                    xlabel('time (ms)');
+                if r == 1 && f == 1
+                    title(title_str, text_opts{:}, 'fontangle','italic');
+                elseif r == yFigs && f == num_pairs
+                    xlabel('time (ms)', text_opts{:}, 'fontangle','italic');
                 else
                 end
                 
@@ -447,7 +450,7 @@ function numberOddball_Exp1(varargin)
             end
             hold off;
             for t = 1:2
-                subplot(yFigs,xFigs,(xFigs-4)+(r-1)*xFigs+(t-1));
+                subplot(yFigs*num_pairs,xFigs,(xFigs-4)+(row_no-1)*xFigs+(t-1));
                 hold on
                 freq_set = max(use_freqs)/2;
                 cond_set = 2;
@@ -456,22 +459,22 @@ function numberOddball_Exp1(varargin)
                 x_vals = repmat((1:freq_set),cond_set,1) + repmat(bar_spacing,freq_set,1)';
                 for c=1:cond_set
                     if opt.use_projected
-                        amp_vals = arrayfun(@(x) curRCA(x).stats.Amp(r,c), curIdx);
-                        amp_temp = arrayfun(@(x) nanmean(curRCA(x).stats.SubjectAmp_projected(r,:,c), 2), curIdx);
-                        df = arrayfun(@(x) sum(~isnan(curRCA(x).stats.SubjectAmp_projected(r,:,c))), curIdx);
+                        amp_vals = arrayfun(@(x) curRCA(x).mean.amp_signal(:,:,r,c), curIdx);
+                        amp_temp = arrayfun(@(x) nanmean(curRCA(x).subjects.proj_amp_signal(:,:,r,:,c), 4), curIdx);
+                        df = arrayfun(@(x) sum(~isnan(curRCA(x).subjects.proj_amp_signal(:,:,r,:,c))), curIdx);
                         if sum(amp_vals - amp_temp) > 1e-10
                             error('average based on projected values is different');
                         else
                             amp_vals = amp_temp;
                         end
-                        err_ub = arrayfun(@(x) nanstd(curRCA(x).stats.SubjectAmp_projected(r,:,c), 0, 2), curIdx)./sqrt(df);
-                        err_lb = arrayfun(@(x) nanstd(curRCA(x).stats.SubjectAmp_projected(r,:,c), 0, 2), curIdx)./sqrt(df);
-                        within_sig = arrayfun(@(x) curRCA(x).stats.tstatP(r,c)<0.05, curIdx);
+                        err_ub = arrayfun(@(x) nanstd(curRCA(x).subjects.proj_amp_signal(:,:,r,:,c), 0, 4), curIdx)./sqrt(df);
+                        err_lb = arrayfun(@(x) nanstd(curRCA(x).subjects.proj_amp_signal(:,:,r,:,c), 0, 4), curIdx)./sqrt(df);
+                        within_sig = arrayfun(@(x) curRCA(x).stats.t_p(:,:,r,c)<0.05, curIdx);
                         
                         if c == 1
                             % DO LME
-                            anova_c1 = cell2mat(arrayfun(@(x) curRCA(x).stats.SubjectAmp_projected(r,:,1), curIdx, 'uni', false));
-                            anova_c2 = cell2mat(arrayfun(@(x) curRCA(x).stats.SubjectAmp_projected(r,:,2), curIdx, 'uni', false));
+                            anova_c1 = cell2mat(arrayfun(@(x) squeeze(curRCA(x).subjects.proj_amp_signal(:,:,r,:,1))', curIdx, 'uni', false));
+                            anova_c2 = cell2mat(arrayfun(@(x) squeeze(curRCA(x).subjects.proj_amp_signal(:,:,r,:,2))', curIdx, 'uni', false));
                             anova_ready = [anova_c1, anova_c2];
                             anova_names = {'dist3','dist0'};
                             cond_lbl = arrayfun(@(x) anova_names(x), [ones(size(anova_c1)), 2*ones(size(anova_c2))]);
@@ -496,15 +499,15 @@ function numberOddball_Exp1(varargin)
                         end
                         
                     else
-                        amp_vals = arrayfun(@(x) curRCA(x).stats.Amp(r,c), curIdx);
-                        err_ub = arrayfun(@(x) curRCA(x).stats.ErrUB(r,c), curIdx);
-                        err_lb = arrayfun(@(x) curRCA(x).stats.ErrLB(r,c), curIdx);
-                        within_sig = arrayfun(@(x) curRCA(x).stats.tSqrdP(r,c)<0.05, curIdx);
+                        amp_vals = arrayfun(@(x) curRCA(x).mean.amp_signal(:,:,r,c), curIdx);
+                        err_ub = arrayfun(@(x) curRCA(x).stats.amp_up_err(:,:,r,c), curIdx);
+                        err_lb = arrayfun(@(x) curRCA(x).stats.amp_lo_err(:,:,r,c), curIdx);
+                        within_sig = arrayfun(@(x) curRCA(x).stats.t2_p(:,:,r,c)<0.05, curIdx);
                     end
                     
                     if c == 1
                         y_max = ceil(max(cell2mat(...
-                            arrayfun(@(x) max(curRCA(x).stats.Amp(r,:)+curRCA(x).stats.ErrUB(r,:)), curIdx,'uni',false))));
+                            arrayfun(@(x) max(curRCA(x).mean.amp_signal(:,:,r,:)+curRCA(x).stats.amp_up_err(:,:,r,:)), curIdx,'uni',false))));
                     else
                     end
                         
@@ -535,38 +538,46 @@ function numberOddball_Exp1(varargin)
                 end
                
                 if any(between_idx)
-                    arrayfun(@(x) text(x,y_max*.95,'*','fontsize',20,'HorizontalAlignment','center'), find(between_idx > 0),'uni',false);
-                    arrayfun(@(x) text(x,y_max*.85,'*','fontsize',20,'HorizontalAlignment','center'), find(between_idx == 2),'uni',false);
+                    arrayfun(@(x) text(x,y_max*.95,'*', text_opts{:}, 'fontsize',20,'HorizontalAlignment','center'), find(between_idx > 0),'uni',false);
+                    arrayfun(@(x) text(x,y_max*.85,'*', text_opts{:}, 'fontsize',20,'HorizontalAlignment','center'), find(between_idx == 2),'uni',false);
                 else
                 end
                 
-                if y_max > 2
+                if y_max >= 2
                     y_unit = 1;
                 else
-                    y_unit = y_max/4;
+                    y_unit = .2;
                 end
                 ylim([0,y_max]);
                 xlim([.5,freq_set+0.5]);
-                if r == yFigs  && t == 1
-                    ylabel('amplitude (\muVolts)', 'fontname', 'Helvetica', 'fontsize', fSize)
+                if r == yFigs  && t == 1 && f == num_pairs
+                    ylabel('amplitude (\muVolts)', text_opts{:}, 'fontangle','italic');
+                    xlabel('harmonics', text_opts{:}, text_opts{:}, 'fontangle','italic');
                 else
                 end
-                if r==1
-                    title(title_str,'fontweight','normal','fontname','Helvetica','fontsize',fSize);
-                elseif r==6
+                if r==1 && f == 1
+                    title(title_str, text_opts{:}, 'fontangle','italic');
+                elseif r==yFigs && f == num_pairs
                     if t==2
-                        lH = legend(amp_h, cond_names);
+                        lH = legend(amp_h, cond_names, text_opts{:});
                         legend boxoff
                         l_pos = get(lH,'position');
-                        l_pos(1) = l_pos(1) + .10;
-                        l_pos(2) = l_pos(2) + .05;
+                        l_pos(1) = l_pos(1) - l_pos(3)*.5;
+                        l_pos(2) = l_pos(2) - l_pos(4)*3;
                         set(lH,'position',l_pos);
                     else
                     end
                 else
                 end
+                if t == 1
+                    text(-1.5, y_max, fig_label{row_no}, text_opts{:}, 'fontsize', 20, 'fontangle','italic');
+                    textH = text(-1.5, y_max*.35, pair_labels{f}, text_opts{:}, 'fontangle','italic',...
+                            'HorizontalAlignment','center','verticalalignment','top');
+                    set(textH,'Rotation',90);
+                else
+                end
                 set(gca, gcaOpts{:}, 'xtick', [1,2,3,4], 'ytick', 0:y_unit:y_max);
-                set(gca, 'xticklabel', cellfun(@(x) ['\it{', sprintf('%s', x),'}'], harm_labels, 'uni', false))
+                set(gca, 'xticklabel', harm_labels);
                 hold off
             end
         end
@@ -574,10 +585,10 @@ function numberOddball_Exp1(varargin)
         for r = 1:yFigs
             for z = 1:size(egiH,2)
                 if opt.plot_split
-                    addVal = 0.8;
+                    addVal = 0.2;
                     shiftLeft = 0.02;
                 else
-                    addVal = 1.5;
+                    addVal = 0.4;
                     shiftLeft = 0.01;
                 end
                 newPos = get(egiH(r,z),'position');
@@ -587,17 +598,12 @@ function numberOddball_Exp1(varargin)
                 set(egiH(r,z),'position',newPos);
             end
         end
-        set(gcf, 'units', 'centimeters');
-        figPos = get(gcf,'pos');
-        figPos(4) = figHeight;
-        figPos(3) = figWidth;
-        set(gcf,'pos',figPos);
-
-        if opt.use_projected    
-            fig_name = sprintf('%s/%s_freq%d_%s_projected_%s', fig_location, opt.data_type, f, rcaType, trial_type);
-        else
-            fig_name = sprintf('%s/%s_freq%d_%s_%s',fig_location, opt.data_type, f, rcaType, trial_type);
-        end
-        export_fig(sprintf('%s.png', fig_name),'-png','-opengl','-m5','-transparent',gcf);
     end
+    
+    if opt.use_projected    
+        fig_name = sprintf('%s/%s_all_%s_projected_%s', fig_location, opt.data_type, rcaType, trial_type);
+    else
+        fig_name = sprintf('%s/%s_all_%s_%s',fig_location, opt.data_type, rcaType, trial_type);
+    end
+    export_fig(sprintf('%s.png', fig_name),'-png','-opengl','-m5','-transparent',gcf);
 end
