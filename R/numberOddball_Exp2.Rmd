@@ -21,7 +21,7 @@ options(width = 1800, show.signif.stars = TRUE)
 ```
 # NUMEROSITY ANALYSIS RESULTS
 ```{r, echo=TRUE, warning=FALSE, message=FALSE, fig.width=6, fig.height=3}
-top_folder = '/Users/kohler/Google Drive/Dropbox/WRITING/Articles/2019_KohlerNumerositySSVEP/figures/results/experiment2'
+top_folder = '/Users/kohler/Google Drive/WRITING/Articles/2019_KohlerNumerositySSVEP/figures/results/experiment2'
 counter = 0
 for (q in c(1,2,3,4)) {
   for (c in c(6,8)) {
@@ -40,7 +40,6 @@ for (q in c(1,2,3,4)) {
       ggtitle(toupper(sprintf('%s%d\n',cur_file, c)))
     if (q == 1 && c == 6) {
       cat("RESULTS BELOW\n  ")
-      cat("\n  ")
     }
     print(g)
     m1 <- lmer(data ~ cond * harm + (1|subject), cur_data)
@@ -55,8 +54,8 @@ for (q in c(1,2,3,4)) {
     } else {
       cat("LOVELY: NONE OF THE MODELS ARE SINGULAR!  ")
     }
-    if (!converge_ok(m1)) {
-      if (!converge_ok(m2)) {
+    if (!performance::check_convergence(m1)) {
+      if (!performance::check_convergence(m2)) {
         cat("WARNING: BOTH MODELS DID NOT CONVERGE!\n\n")
       } else {
         cat("WARNING: MODEL1 DID NOT CONVERGE, BUT MODEL2 DID!\n\n")
@@ -66,6 +65,8 @@ for (q in c(1,2,3,4)) {
     }
     cat("ANOVA TEST FOR MAIN EFFECTS AND INTERACTIONS\n")
     print(anova(m1), type='pdf')
+    write.csv(as.matrix(anova(m1)), 
+              file = sprintf('%s/%s%d_full_projected_all_results.csv', top_folder, cur_file, c), na ="")
     cat("\nESTIMATED MARGINAL MEANS, SIMPLE MAIN EFFECTS OF CONDITION WITHOUT CORRECTION\n")
     print(prettify(summary(pairs(emm, simple = "cond", adjust = "none"))))
     cat("\nTEST OF WHETHER OR NOT THE INTERACTION PROVIDES A BETTER FIT\n")

@@ -21,7 +21,7 @@ options(width = 1800, show.signif.stars = TRUE)
 ```
 # NUMEROSITY ANALYSIS RESULTS
 ```{r, echo=TRUE, warning=FALSE, message=FALSE, fig.width=6, fig.height=3}
-top_folder = '/Users/kohler/Google Drive/Dropbox/WRITING/Articles/2019_KohlerNumerositySSVEP/figures/results/experiment1'
+top_folder = '/Users/kohler/Google Drive/WRITING/Articles/2019_KohlerNumerositySSVEP/figures/results/experiment1'
 counter = 0
 for (f in c(1,2,3)) {
   for (q in c(1,2,3,4)) {
@@ -66,6 +66,9 @@ for (f in c(1,2,3)) {
     }
     cat("ANOVA TEST FOR MAIN EFFECTS AND INTERACTIONS\n")
     print(anova(m1), type='pdf')
+    write.csv(as.matrix(anova(m1)), 
+              file = sprintf('%s/%s%d_full_projected_all_results.csv', top_folder, cur_file, f), 
+              na ="")
     cat("\nSUMMARY AND POST-HOC TESTS, harm1 baseline \n")
     print(prettify(summary(m1)), type='pdf')
     cat("\nESTIMATED MARGINAL MEANS, SIMPLE MAIN EFFECTS OF CONDITION WITHOUT CORRECTION\n")
