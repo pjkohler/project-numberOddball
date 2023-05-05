@@ -1,4 +1,4 @@
-function numberOddball_Exp1(varargin)
+function numberOddball_EEG_Exp1(varargin)
     % Description:	analyze data from numberOddball Experiment 2
     % 
     % Syntax:	numberOddball_Exp2(<options>)
@@ -14,6 +14,9 @@ function numberOddball_Exp1(varargin)
     %
     %   plot_split       - plot RC run separately on odd and carrier
     %                       true/[false]
+    %
+    %   plot_axx         - plot axx waveforms passed through the rc
+    %                       components [true]/false
     %
     %   force_source - force reading in of raw data when initial running
     %                       RCA [true]/false
@@ -31,20 +34,22 @@ function numberOddball_Exp1(varargin)
     close all;
     if ~exist('code_folder','var')
         code_folder = '/Users/kohler/code';
-        addpath(genpath(sprintf('%s/git/rcaBase',code_folder)));
-        addpath(genpath(sprintf('%s/git/mrC',code_folder)));
-        addpath(genpath(sprintf('%s/git/schlegel/matlab_lib',code_folder)));
-        addpath(genpath(sprintf('%s/git/export_fig',code_folder)));
+        addpath(genpath(sprintf('%s/git/rcaBase',code_folder)),'-end');
+        addpath(genpath(sprintf('%s/git/mrC',code_folder)),'-end');
+        addpath(genpath(sprintf('%s/git/schlegel/matlab_lib/misc',code_folder)),'-end');
+        addpath(genpath(sprintf('%s/git/schlegel/matlab_lib/figure',code_folder)),'-end');
+        addpath(genpath('~/code/git/export_fig'));
     else
     end
     setenv('DYLD_LIBRARY_PATH','')
     
     %% PARSE ARGS
-    opt	= ParseArgs(varargin,...
+    opt	= Parse_Args(varargin,...
             'folders_to_use', [], ...
-            'launch_rca', true, ...
+            'launch_rca', false, ...
             'trial_error', false, ...
             'plot_split', false, ...
+            'plot_axx', true, ...
             'force_source', false, ...
             'axx_type', 'ALL', ...
             'use_projected', true, ...
@@ -54,12 +59,12 @@ function numberOddball_Exp1(varargin)
 
     %% VARIABLES THAT CAN BE CHANGED
     do_exp = 1;
-    top_folder = sprintf('/Volumes/GoogleDrive/My Drive/numeroOddball/Experiment%.0d',do_exp);
+    top_folder = sprintf('/Volumes/MyGoogleDrive/ONGOING/numeroOddball/Experiment%.0d',do_exp);
     cond_names = {'dist 3','control'};
 
     %% IDENTIFY DATA LOCATION
-    data_location = sprintf('/Users/kohler/Google Drive/Dropbox/WRITING/Articles/2019_KohlerNumerositySSVEP/figures/results/experiment%.0d/%s', do_exp, opt.data_type);
-    fig_location = sprintf('/Users/kohler/Google Drive/Dropbox/WRITING/Articles/2019_KohlerNumerositySSVEP/figures/results/experiment%.0d', do_exp);
+    data_location = sprintf('/Volumes/MyGoogleDrive/WRITING/Articles/2019_KohlerNumerositySSVEP/figures/results/experiment%.0d/%s', do_exp, opt.data_type);
+    fig_location = sprintf('/Volumes/MyGoogleDrive/WRITING/Articles/2019_KohlerNumerositySSVEP/figures/results/experiment%.0d', do_exp);
     if ~exist(data_location,'dir')
         mkdir(data_location);
     else
@@ -84,7 +89,8 @@ function numberOddball_Exp1(varargin)
     use_freqs = 1:8; % indices of frequencies to include in analysis (the values must be present in the frequency column of all DFT/RLS exports)
     use_conds = 1:6;
     use_trials = []; % subset of trials to use for analysis (if set to false or empty, all trials will be used)
-    
+    use_subs = [];   % subset of subjects to use for analysis (if set to false or empty, all trials will be used)
+        
     compare_chan = 75; % comparison channel
     
     carrier_freq = [6.0, 3.75, 3] ;
@@ -120,44 +126,46 @@ function numberOddball_Exp1(varargin)
             cur_cond = [c-1,c]+c;
             % full RCA, use all harmonics 1F1, 2F1, 1F2 and 2F2
             if c==1
-                rca_full(c,:) = rcaSweep(path_names, use_bins, use_freqs, cur_cond, use_trials, n_reg, n_comp, opt.data_type, compare_chan,[], rcPlotStyle, opt.force_source); % TRUE
+                rca_full(c,:) = rcaSweep(path_names, use_bins, use_freqs, cur_cond, use_trials, use_subs, n_reg, n_comp, opt.data_type, compare_chan, false, false); % TRUE
             else
                 % since this is just a subset of the previous RCA, set force_source to false
-                rca_full(c,:) = rcaSweep(path_names, use_bins, use_freqs, cur_cond, use_trials, n_reg, n_comp, opt.data_type, compare_chan,[], rcPlotStyle, false);
+                rca_full(c,:) = rcaSweep(path_names, use_bins, use_freqs, cur_cond, use_trials, use_subs, n_reg, n_comp, opt.data_type, compare_chan, false, false);
             end
-            if c == 3
-                for f = 1:size(rca_full,2)
-                    rca_full(c,f) = flipSwapRCA(rca_full(c,f),1:5,1);
-                end
-            elseif c == 1
+            if c == 2
                 for f = 1:size(rca_full,2)
                     rca_full(c,f) = flipSwapRCA(rca_full(c,f),1:5,2);
                 end
+            else
             end
+            %elseif c == 1
+            %    for f = 1:size(rca_full,2)
+            %        rca_full(c,f) = flipSwapRCA(rca_full(c,f),1:5,2);
+            %    end
+            %end
             rcaH = grabCovFig(gcf);
-            export_fig(sprintf('%s/rca_full_cond%.0d&%.0d_cov.pdf', data_location, cur_cond(1), cur_cond(2)),'-pdf','-transparent',rcaH);
+            %export_fig(sprintf('%s/rca_full_cond%.0d&%.0d_cov.pdf', data_location, cur_cond(1), cur_cond(2)),'-pdf','-transparent',rcaH);
             close all;
             
             % create axx_rca_full
             full_w = [rca_full(c,1).W, w_comparison];
-            axx_rca_full(c) = axxRCAmake(path_names,full_w,cur_cond,opt.axx_type); % create struct
+            axx_rca_full(c) = rcaWaveProject(path_names,full_w,cur_cond,opt.axx_type); % create struct
 
             % oddball RCA, first two frequencies 1F1 and 2F1 
             % since this is just a subset of the previous RCA, set force_source to false
-            rca_odd(c, :) = rcaSweep(path_names, use_bins, use_freqs(1:end/2), cur_cond, use_trials, n_reg, n_comp, opt.data_type, compare_chan,[], rcPlotStyle, false);
+            rca_odd(c, :) = rcaSweep(path_names, use_bins, use_freqs(1:end/2), cur_cond, use_trials, use_subs, n_reg, n_comp, opt.data_type, compare_chan, false, false);
             rcaH = grabCovFig(gcf);
             export_fig(sprintf('%s/rca_odd_cond%.0d&%.0d_cov.pdf', data_location, cur_cond(1), cur_cond(2)),'-pdf','-transparent',rcaH);
             close all;
             
             % carrier RCA, last two frequencies 1F2 and 2F2
-            rca_carr(c, :) = rcaSweep(path_names, use_bins, use_freqs(end/2+1:end), cur_cond, use_trials, n_reg, n_comp, opt.data_type, compare_chan,[], rcPlotStyle, false);
+            rca_carr(c, :) = rcaSweep(path_names, use_bins, use_freqs(end/2+1:end), cur_cond, use_trials, use_subs, n_reg, n_comp, opt.data_type, compare_chan, false, false);
             rcaH = grabCovFig(gcf);
             export_fig(sprintf('%s/rca_carr_cond%.0d&%.0d_cov.pdf', data_location, cur_cond(1), cur_cond(2)),'-pdf','-transparent',rcaH);
             oddW = [rca_odd(c).W, w_comparison];
             carrierW = [rca_carr(c).W, w_comparison];
             
-            axx_rca_odd(c) = axxRCAmake(path_names,oddW,cur_cond,opt.axx_type); % create struct
-            axx_rca_carr(c) = axxRCAmake(path_names,carrierW,cur_cond,opt.axx_type); % create struct
+            axx_rca_odd(c) = rcaWaveProject(path_names,oddW,cur_cond,opt.axx_type); % create struct
+            axx_rca_carr(c) = rcaWaveProject(path_names,carrierW,cur_cond,opt.axx_type); % create struct
             close all;
         end
         save(save_name,'rca_full', 'rca_odd', 'rca_carr', 'axx_rca_*','-append')
@@ -193,11 +201,11 @@ function numberOddball_Exp1(varargin)
                 curRCA(c,f) = aggregateData(curRCA(c,f), keepConditions, errorType, opt.trial_error, doNR);
             end
             % axx_rca_full
-            n_tps = size(curAxxRCA(c).Projected{1,1},1);
-            n_rca = size(curAxxRCA(c).Projected{1,1},2);
-            n_subs = size(curAxxRCA(c).Projected,2);
+            n_tps = size(curAxxRCA(c).rcaWave{1,1},1);
+            n_rca = size(curAxxRCA(c).rcaWave{1,1},2);
+            n_subs = size(curAxxRCA(c).rcaWave,2);
             n_cond = 2;
-            curAxxRCA(c).ProjMat = reshape(cell2mat(curAxxRCA(c).Projected),n_tps,n_cond,n_rca,n_subs);
+            curAxxRCA(c).ProjMat = reshape(cell2mat(curAxxRCA(c).rcaWave),n_tps,n_cond,n_rca,n_subs);
             curAxxRCA(c).avg = nanmean(curAxxRCA(c).ProjMat,4);
             curAxxRCA(c).std = nanstd(curAxxRCA(c).ProjMat,0,4);
             curAxxRCA(c).sem = curAxxRCA(c).std./sqrt(n_subs);
@@ -227,23 +235,17 @@ function numberOddball_Exp1(varargin)
             for rc_type = 1:2
                 for c = 1:2
                     if rc_type == 1
-                        [rca_data_real,rca_data_imag] = getRealImag(rca_full(fPair,f).data);
-                        [comp_data_real,comp_data_imag] = getRealImag(rca_full(fPair,f).comparisonData);
+                        [rca_data_real,rca_data_imag] = getRealImag(rca_full(fPair,f).rca_data);
                         rca_proj = squeeze(rca_full(fPair,f).subjects.proj_amp_signal);
                     else
                         if f > length(rca_odd)
-                            [rca_data_real,rca_data_imag] = getRealImag(rca_carr(fPair,f-length(rca_odd)).data);
-                            [comp_data_real,comp_data_imag] = getRealImag(rca_carr(fPair,f-length(rca_odd)).comparisonData);
+                            [rca_data_real,rca_data_imag] = getRealImag(rca_carr(fPair,f-length(rca_odd)).rca_data);
                             rca_proj = squeeze(rca_split(fPair,f-length(rca_odd)).subjects.proj_amp_signal);
                         else
-                            [rca_data_real,rca_data_imag] = getRealImag(rca_odd(fPair,f).data);
-                            [comp_data_real,comp_data_imag] = getRealImag(rca_odd(fPair,f).comparisonData);
+                            [rca_data_real,rca_data_imag] = getRealImag(rca_odd(fPair,f).rca_data);
                             rca_proj = squeeze(rca_split(fPair,f).subjects.proj_amp_signal);
                         end
                     end
-                    % concatenate comparison and rca data
-                    rca_data_real = cellfun(@(x,y) cat(2,x,y), rca_data_real, comp_data_real, 'uni', false);
-                    rca_data_imag = cellfun(@(x,y) cat(2,x,y), rca_data_imag, comp_data_imag, 'uni', false);
                     
                     for r = 1:6
                         x_data = cell2mat(cellfun(@(x) squeeze(nanmean(x(1,r,:),3)), rca_data_real, 'uni', false));
@@ -274,6 +276,9 @@ function numberOddball_Exp1(varargin)
 
     
     %% NEW PLOTTING
+    % note: plotting split data does not really work in the current version
+    % could be built in fairly easily, but would require some work
+    % rca_full seems cooler, simpler, and more informative anyway
     close all
     
     % significance colors
@@ -283,15 +288,23 @@ function numberOddball_Exp1(varargin)
     lWidth = 1;
     fSize = 12;
     text_opts = {'fontweight','normal','fontname','Helvetica','fontsize',fSize};
-    gcaOpts = [{'tickdir','out','ticklength',[0.0200,0.0200],'box','off','linewidth',lWidth}, text_opts];
+    gcaOpts = [{'tickdir','out','ticklength',[0.0200,0.0200],'box','off','linewidth',lWidth, 'clipping', 'off'}, text_opts];
 
     yFigs = 2;
-    color_max = 0.3;
+    color_max = 0.2;
 
-    if opt.plot_split == 0    
-        xFigs = 5;
+    if opt.plot_split == 0
+        if opt.plot_axx 
+            xFigs = 5;
+        else
+            xFigs = 3;
+        end
     else
-        xFigs = 8;
+        if opt.plot_axx 
+            xFigs = 10;
+        else
+            xFigs = 6;
+        end
     end
 
     clear egiH;
@@ -339,7 +352,7 @@ function numberOddball_Exp1(varargin)
             if r < 6            
                 if opt.plot_split == 0
                     curRCA = rca_full(f,:);
-                    egiH(r,1) = subplot(yFigs*num_pairs,xFigs,(xFigs-2)+(row_no-1)*xFigs);
+                    egiH(r,1) = subplot(yFigs*num_pairs,xFigs,3+(row_no-1)*xFigs);
                     hold on
                     [~, colorH] = mrC.plotOnEgi(curRCA(1).A(:,r),[-color_max, color_max], r==yFigs);
                     rcaType = 'full';
@@ -358,9 +371,9 @@ function numberOddball_Exp1(varargin)
                     for z = 1:length(colorH)
                         set(colorH(z),'units','centimeters','location','south', text_opts{:}, 'xtick', [-color_max:.1:color_max]);
                         color_pos = get(colorH(z),'position');
-                        color_pos(1) = color_pos(1) - color_pos(3)*.6; 
-                        color_pos(2) = color_pos(2) - color_pos(4)*3.5;
-                        color_pos(3) = color_pos(3) * 2;
+                        color_pos(1) = color_pos(1) - color_pos(3)*.4; 
+                        color_pos(2) = color_pos(2) - color_pos(4)*4.3;
+                        color_pos(3) = color_pos(3) * 1.8;
                         set(colorH(z),'position', color_pos, 'AxisLocation','out'); 
                         if f ~= num_pairs
                             set(colorH(z),'visible','off');
@@ -373,84 +386,88 @@ function numberOddball_Exp1(varargin)
                 hold off
             else
             end
-
-            % axx plot
-            for z = 1:2
-                if opt.plot_split == 0
-                    % full axx
-                    subplot(yFigs*num_pairs,xFigs,[(xFigs-1)+(row_no-1)*xFigs, xFigs+(row_no-1)*xFigs]);
-                    cur_axx = axx_rca_full(f);
-                    title_str = 'single cycle waveform';
-                else
-                    if z == 1
-                        subplot(yFigs*num_pairs,xFigs,[1+(row_no-1)*xFigs, 2+(row_no-1)*xFigs]);
-                        cur_axx = axx_rca_odd(f);
-                        title_str = 'single cycle waveform (odd)';
+            if opt.plot_axx
+                % axx plot
+                for z = 1:2
+                    if opt.plot_split == 0
+                        % full axx
+                        subplot(yFigs*num_pairs, xFigs,[xFigs-1,xFigs]+(row_no-1)*xFigs);
+                        cur_axx = axx_rca_full(f);
+                        title_str = 'single cycle waveform';
                     else
-                        subplot(yFigs*num_pairs,xFigs,[(xFigs-1)+(row_no-1)*xFigs,xFigs+(row_no-1)*xFigs]);
-                        cur_axx = axx_rca_carr(f);
-                        title_str = 'single cycle waveform (carrier)';
+                        if z == 1
+                            subplot(yFigs*num_pairs,xFigs,[xFigs/2-1,xFigs/2]+(row_no-1)*xFigs);
+                            cur_axx = axx_rca_odd(f);
+                            title_str = 'single cycle waveform (odd)';
+                        else
+                            subplot(yFigs*num_pairs,xFigs,[xFigs-1,xFigs]+(row_no-1)*xFigs);
+                            cur_axx = axx_rca_carr(f);
+                            title_str = 'single cycle waveform (carrier)';
+                        end
                     end
-                end
-                dataToPlot = squeeze(cur_axx.avg(:,:,r));
-                errorToPLot = squeeze(cur_axx.sem(:,:,r));
-                axx_ymin = floor(min((min(cur_axx.avg(:,:,r)-cur_axx.sem(:,:,r)))/2))*2;
-                axx_ymax = ceil(max((max(cur_axx.avg(:,:,r)+cur_axx.sem(:,:,r)))/2))*2;
-                axx_ymax = max(abs([axx_ymin, axx_ymax]));
-                axx_ymin = -axx_ymax;
-                axx_xmin = 0;
-                axx_xmax = max(axx_xvals);
-                sig_pos(1) = axx_ymax;
-                sig_pos(2) = axx_ymax-( axx_ymax-axx_ymin) *.1; 
-                if ( axx_ymax-axx_ymin ) >= 10
-                    axx_yunit = 2;
-                else
-                    axx_yunit = 1;
-                end
-                hold on
-                for c=1:size(dataToPlot,2)
-                    plot(axx_xvals,dataToPlot(:,c),'-','LineWidth',lWidth,'Color',bold_colors(color_idx(c),:));
-                    ErrorBars(axx_xvals',dataToPlot(:,c),errorToPLot(:,c),'color',bold_colors(color_idx(c),:));
-                end
-                ylim([axx_ymin, axx_ymax]);
-                xlim([axx_xmin, axx_xmax]);
-                set(gca,gcaOpts{:},'xtick',axx_ticks,'xticklabel',cellfun(@(x) num2str(x),num2cell(axx_ticks),'uni',false),'ytick',axx_ymin:axx_yunit:axx_ymax);
-                yLine = repmat(get(gca,'YLim'),axx_reps(f),1)';
-                line(repmat(stim_onset,2,1),yLine,'Color','black');
-                if r == 1 && f == 1
-                    title(title_str, text_opts{:}, 'fontangle','italic');
-                elseif r == yFigs && f == num_pairs
-                    xlabel('time (ms)', text_opts{:}, 'fontangle','italic');
-                else
-                end
-                
-                % plot corrected t-values
-                regionIdx = bwlabel(cur_axx.corrT(:,r));
-                for m=1:max(regionIdx)
-                    tmp = regionprops(regionIdx == m,'centroid');
-                    idx = round(tmp.Centroid(2));
-                    hTxt = text(axx_xvals(idx),sig_pos(1),'*','fontsize',18,'fontname','Helvetica','horizontalalignment','center','verticalalignment','cap');
-                end
+                    dataToPlot = squeeze(cur_axx.avg(:,:,r));
+                    errorToPLot = squeeze(cur_axx.sem(:,:,r));
+                    %axx_ymin = floor(min((min(cur_axx.avg(:,:,r)-cur_axx.sem(:,:,r)))/2))*2;
+                    %axx_ymax = ceil(max((max(cur_axx.avg(:,:,r)+cur_axx.sem(:,:,r)))/2))*2;
+                    %axx_ymax = max(abs([axx_ymin, axx_ymax]));
+                    %axx_ymin = -axx_ymax;
 
-                % plot uncorrected t-values
-                cur_p = repmat( cur_axx.realP(:,r)',20,1 );
-                h_img = image([min(axx_xvals),max(axx_xvals)],[sig_pos(1),sig_pos(2)], cur_p, 'CDataMapping', 'scaled','Parent',gca);
-                colormap( gca, p_colormap );   
-                c_mapmax = .05+2*.05/(size(p_colormap,1));
-                set( gca, 'CLim', [ 0 c_mapmax ] ); % set range for color scale
-                set(gca, gcaOpts{:});
-                uistack(h_img,'bottom')
-                
-                s = get(gca, 'Position');
-                set(gca, 'Position', [s(1)+0.01, s(2), s(3)*0.9, s(4)]);
-                if opt.plot_split == 0
-                    continue
-                else
-                end  
+                    if row_no > 3
+                        axx_yunit = 4; axx_ymin = -8; axx_ymax = 8;
+
+                    else
+                        axx_yunit = 2; axx_ymin = -6; axx_ymax = 6;
+                    end
+                    axx_xmin = 0;
+                    axx_xmax = max(axx_xvals);
+                    sig_pos(1) = axx_ymax;
+                    sig_pos(2) = axx_ymax-( axx_ymax-axx_ymin) *.1; 
+
+                    hold on
+                    for c=1:size(dataToPlot,2)
+                        plot(axx_xvals,dataToPlot(:,c),'-','LineWidth',lWidth,'Color',bold_colors(color_idx(c),:));
+                        ErrorBars(axx_xvals',dataToPlot(:,c),errorToPLot(:,c),'color',bold_colors(color_idx(c),:));
+                    end
+                    ylim([axx_ymin, axx_ymax]);
+                    xlim([axx_xmin, axx_xmax]);
+                    set(gca,gcaOpts{:},'xtick',axx_ticks,'xticklabel',cellfun(@(x) num2str(x),num2cell(axx_ticks),'uni',false),'ytick',axx_ymin:axx_yunit:axx_ymax);
+                    yLine = repmat(get(gca,'YLim'),axx_reps(f),1)';
+                    line(repmat(stim_onset,2,1),yLine,'Color','black');
+                    if r == 1 && f == 1
+                        title(title_str, text_opts{:}, 'fontangle','italic');
+                    elseif r == yFigs && f == num_pairs
+                        xlabel('time (ms)', text_opts{:}, 'fontangle','italic');
+                    else
+                    end
+
+                    % plot corrected t-values
+                    regionIdx = bwlabel(cur_axx.corrT(:,r));
+                    for m=1:max(regionIdx)
+                        tmp = regionprops(regionIdx == m,'centroid');
+                        idx = round(tmp.Centroid(2));
+                        hTxt = text(axx_xvals(idx),sig_pos(1),'*','fontsize',18,'fontname','Helvetica','horizontalalignment','center','verticalalignment','cap');
+                    end
+
+                    % plot uncorrected t-values
+                    cur_p = repmat( cur_axx.realP(:,r)',20,1 );
+                    h_img = image([min(axx_xvals),max(axx_xvals)],[sig_pos(1),sig_pos(2)], cur_p, 'CDataMapping', 'scaled','Parent',gca);
+                    colormap( gca, p_colormap );   
+                    c_mapmax = .05+2*.05/(size(p_colormap,1));
+                    set( gca, 'CLim', [ 0 c_mapmax ] ); % set range for color scale
+                    set(gca, gcaOpts{:});
+                    uistack(h_img,'bottom')
+
+                    s = get(gca, 'Position');
+                    set(gca, 'Position', [s(1)+0.01, s(2), s(3)*0.9, s(4)]);
+                    if opt.plot_split == 0
+                        continue
+                    else
+                    end  
+                end
+                hold off;
             end
-            hold off;
             for t = 1:2
-                subplot(yFigs*num_pairs,xFigs,(xFigs-4)+(row_no-1)*xFigs+(t-1));
+                subplot(yFigs*num_pairs,xFigs,1+(row_no-1)*xFigs+(t-1));
                 hold on
                 freq_set = max(use_freqs)/2;
                 cond_set = 2;
@@ -479,10 +496,20 @@ function numberOddball_Exp1(varargin)
                             anova_names = {'dist3','dist0'};
                             cond_lbl = arrayfun(@(x) anova_names(x), [ones(size(anova_c1)), 2*ones(size(anova_c2))]);
                             if t == 1
+                                if row_no > 3
+                                    y_max = 3;
+                                else
+                                    y_max = 1;
+                                end
                                 title_str = 'oddball';
                                 harm_labels = {'1F1','2F1','3F1','4F1'};
                                 r_table = sprintf('%s/%s_oddball_rc%d_freq%d_%s_projected_%s.csv', fig_location, opt.data_type, r, f, rcaType, trial_type);
                             else
+                                if row_no > 3
+                                    y_max = 2;
+                                else
+                                    y_max = 4;
+                                end
                                 title_str = 'carrier';
                                 harm_labels = {'1F2','2F2','3F2','4F2'};
                                 r_table = sprintf('%s/%s_carrier_rc%d_freq%d_%s_projected_%s.csv', fig_location, opt.data_type, r, f, rcaType, trial_type);
@@ -495,6 +522,11 @@ function numberOddball_Exp1(varargin)
                             tbl.condition = categorical(tbl.condition);
                             tbl.harmonic = categorical(tbl.harmonic);
                             writetable(tbl, r_table, 'Delimiter',',','QuoteStrings',true);
+                            anova_file = strrep(r_table,"trials","results");
+                            if exist(anova_file,'file')
+                                anova_out = readtable(anova_file,'Delimiter',',','ReadRowNames',true);
+                            else
+                            end 
                         else
                         end
                         
@@ -504,17 +536,8 @@ function numberOddball_Exp1(varargin)
                         err_lb = arrayfun(@(x) curRCA(x).stats.amp_lo_err(:,:,r,c), curIdx);
                         within_sig = arrayfun(@(x) curRCA(x).stats.t2_p(:,:,r,c)<0.05, curIdx);
                     end
-                    
-                    if c == 1
-                        y_max = ceil(max(cell2mat(...
-                            arrayfun(@(x) max(curRCA(x).mean.amp_signal(:,:,r,:)+curRCA(x).stats.amp_up_err(:,:,r,:)), curIdx,'uni',false))));
-                    else
-                    end
-                        
                     errorbar(x_vals(c,:), amp_vals, err_lb, err_ub, '.k', 'LineWidth',lWidth, 'marker','none');
-                    
                     amp_h(c) = bar(x_vals(c,:), amp_vals,'BarWidth',bar_width,'edgecolor','none','facecolor',bold_colors(color_idx(c),:));
-
                     for z = 1:length(within_sig)
                         if within_sig(z)
                             patch_x = [ x_vals(c,z)-bar_width/2, x_vals(c,z)+bar_width/2, x_vals(c,z)+bar_width/2, x_vals(c,z)-bar_width/2];
@@ -537,12 +560,37 @@ function numberOddball_Exp1(varargin)
                     between_idx = between_idx + ((cur_p < 0.005) & (cur_sign == 1));
                 end
                
-                if any(between_idx)
-                    arrayfun(@(x) text(x,y_max*.95,'*', text_opts{:}, 'fontsize',20,'HorizontalAlignment','center'), find(between_idx > 0),'uni',false);
-                    arrayfun(@(x) text(x,y_max*.85,'*', text_opts{:}, 'fontsize',20,'HorizontalAlignment','center'), find(between_idx == 2),'uni',false);
+                %if any(between_idx)
+                %    arrayfun(@(x) text(x,y_max*.95,'*', text_opts{:}, 'fontsize',20,'HorizontalAlignment','center'), find(between_idx > 0),'uni',false);
+                %    arrayfun(@(x) text(x,y_max*.85,'*', text_opts{:}, 'fontsize',20,'HorizontalAlignment','center'), find(between_idx == 2),'uni',false);
+                %else
+                %end
+                p_opts = {'fontsize', 10, 'Interpreter', 'tex', 'HorizontalAlignment','left'};
+                if exist('anova_out','var');
+                    if table2array(anova_out({'cond'},{'Pr__F_'})) < 0.05
+                        main_p = table2array(anova_out({'cond'},{'Pr__F_'}));
+                        if main_p < 0.0001
+                            text(1,y_max*.95, 'N_{main} {\itp} < 0.0001', text_opts{:}, p_opts{:});
+                        elseif main_p < 0.001
+                            text(1,y_max*.95, 'N_{main} {\itp} < 0.001', text_opts{:}, p_opts{:});
+                        else
+                            text(1,y_max*.95, strcat("N_{main} {\itp} = ", sprintf("%.3f", main_p)), text_opts{:}, p_opts{:});
+                        end
+                    else
+                    end
+                    if table2array(anova_out({'cond:harm'},{'Pr__F_'})) < 0.05
+                        inter_p = table2array(anova_out({'cond:harm'},{'Pr__F_'}));
+                        if inter_p < 0.0001
+                            text(1,y_max*.8, "N\timesH {\itp} < 0.0001", text_opts{:}, p_opts{:});
+                        elseif inter_p < 0.001
+                            text(1,y_max*.8, "N\timesH {\itp} < 0.001", text_opts{:}, p_opts{:});
+                        else
+                            text(1,y_max*.8, strcat("N\timesH {\itp} = ", sprintf("%.3f", inter_p)), text_opts{:}, p_opts{:});
+                        end
+                    else
+                    end
                 else
                 end
-                
                 if y_max >= 2
                     y_unit = 1;
                 else
@@ -563,7 +611,7 @@ function numberOddball_Exp1(varargin)
                         legend boxoff
                         l_pos = get(lH,'position');
                         l_pos(1) = l_pos(1) - l_pos(3)*.5;
-                        l_pos(2) = l_pos(2) - l_pos(4)*3;
+                        l_pos(2) = l_pos(2) - l_pos(4)*3.5;
                         set(lH,'position',l_pos);
                     else
                     end

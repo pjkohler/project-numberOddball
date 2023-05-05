@@ -1,4 +1,4 @@
-clear all; close all;
+ clear all; close all;
 load('xDiva_params.mat');
 
 % add paths
@@ -9,7 +9,7 @@ addpath(genpath('./socmodel'))
 addpath('./minbound_suite')
 addpath(genpath('/Users/kohler/code/git/xDiva'))
 
-fig_folder = '/Users/kohler/Google Drive/Dropbox/WRITING/Articles/2019_KohlerNumerositySSVEP/figures';
+fig_folder = '/Users/kohler/Google Drive/WRITING/Articles/2019_KohlerNumerositySSVEP/figures';
 
 carr_vals = {'5','6','8','9'};
 odd_vals = {'5','6','8','9'};
@@ -133,18 +133,32 @@ export_fig(sprintf('%s/examples/stimulus_example.pdf',fig_folder),'-transparent'
 
 close all;
 figure;
-for c = 1:6
-    if c == 6
-        imshow(odd.carr8_odd5.images(:,:,1));
-    else
-        imshow(carr.carr8_odd5.images(:,:,c));
+for q = 1:2
+    for c = 1:6
+        if c == 6
+            if q == 1
+                imshow(odd.carr8_odd5.images(:,:,1));
+            else
+                imshow(odd.carr8_odd8.images(:,:,1));
+            end
+        else
+            if q == 1
+                imshow(carr.carr8_odd5.images(:,:,c));
+            else
+                imshow(carr.carr8_odd8.images(:,:,c));
+            end
+        end
+        axis off
+        set(gcf,'units','centimeters');
+        fig_pos = get(gcf,'pos');
+        fig_pos(3) = 10; fig_pos(4) = 10;
+        set(gcf,'pos',fig_pos);
+        if q == 1
+            export_fig(sprintf('%s/examples/oddball%d.png',fig_folder, c),'-png','-opengl','-m5','-transparent',gcf);
+        else
+            export_fig(sprintf('%s/examples/reference%d.png',fig_folder, c),'-png','-opengl','-m5','-transparent',gcf);
+        end
     end
-    axis off
-    set(gcf,'units','centimeters');
-    fig_pos = get(gcf,'pos');
-    fig_pos(3) = 10; fig_pos(4) = 10;
-    set(gcf,'pos',fig_pos);
-    export_fig(sprintf('%s/examples/stimulus%d.png',fig_folder, c),'-png','-opengl','-m5','-transparent',gcf);
 end
 close all
 
@@ -256,43 +270,43 @@ for a = 1:length(a_idx)
         switch z
             case 1
                 cur_set = 'carr5_odd5';
-                title_str = '5 odd, 5 carr';
+                title_str = '5 odd, 5 ref';
                 plot_spacing = .1;
             case 2
                 cur_set = 'carr5_odd8';
-                title_str = '8 odd, 5 carr';
+                title_str = '8 odd, 5 ref';
                 plot_spacing = .1;
             case 3
                 cur_set = 'carr6_odd5';
-                title_str = '5 odd, 6 carr';
+                title_str = '5 odd, 6 ref';
                 plot_spacing = .3;
             case 4
                 cur_set = 'carr6_odd6';
-                title_str = '6 odd, 6 carr';
+                title_str = '6 odd, 6 ref';
                 plot_spacing = .1;
             case 5
                 cur_set = 'carr6_odd9';
-                title_str = '9 odd, 6 carr';
+                title_str = '9 odd, 6 ref';
                 plot_spacing = .1;
             case 6 
                 cur_set = 'carr8_odd9';
-                title_str = '9 odd, 8 carr';
+                title_str = '9 odd, 8 ref';
                 plot_spacing = .3;
             case 7 
                 cur_set = 'carr8_odd8';
-                title_str = '8 odd, 8 carr';
+                title_str = '8 odd, 8 ref';
                 plot_spacing = .1;
             case 8
                 cur_set = 'carr8_odd5';
-                title_str = '5 odd, 8 carr';
+                title_str = '5 odd, 8 ref';
                 plot_spacing = .1;
             case 9
                 cur_set = 'carr9_odd9';
-                title_str = '9 odd, 9 carr';
+                title_str = '9 odd, 9 ref';
                 plot_spacing = .3;
             case 10
                 cur_set = 'carr9_odd6';
-                title_str = '6 odd, 9 carr';
+                title_str = '6 odd, 9 ref';
                 plot_spacing = .1;
             otherwise
         end
@@ -406,43 +420,43 @@ for z = 1:10
     switch z
         case 1
             cur_set = 'carr5_odd5';
-            title_str = '5 odd, 5 carr';
+            title_str = '5 odd, 5 ref';
             sub_pos = 2;
         case 2
             cur_set = 'carr5_odd8';
-            title_str = '8 odd, 5 carr';
+            title_str = '8 odd, 5 ref';
             sub_pos = 3;
         case 3
             cur_set = 'carr6_odd5';
-            title_str = '5 odd, 6 carr';
+            title_str = '5 odd, 6 ref';
             sub_pos = 4;
         case 4
             cur_set = 'carr6_odd6';
-            title_str = '6 odd, 6 carr';
+            title_str = '6 odd, 6 ref';
              sub_pos = 5;
         case 5
             cur_set = 'carr6_odd9';
-            title_str = '9 odd, 6 carr';
+            title_str = '9 odd, 6 ref';
              sub_pos = 6;
         case 6 
             cur_set = 'carr8_odd9';
-            title_str = '9 odd, 8 carr';
+            title_str = '9 odd, 8 ref';
             sub_pos = 7;
         case 7 
             cur_set = 'carr8_odd8';
-            title_str = '8 odd, 8 carr';
+            title_str = '8 odd, 8 ref';
             sub_pos = 8;
         case 8
             cur_set = 'carr8_odd5';
-            title_str = '5 odd, 8 carr';
+            title_str = '5 odd, 8 ref';
             sub_pos = 9;
         case 9
             cur_set = 'carr9_odd9';
-            title_str = '9 odd, 9 carr';
+            title_str = '9 odd, 9 ref';
             sub_pos = 11;
         case 10
             cur_set = 'carr9_odd6';
-            title_str = '6 odd, 9 carr';
+            title_str = '6 odd, 9 ref';
             sub_pos = 12;
         otherwise
     end
@@ -501,22 +515,22 @@ for z = 1:6
     switch z
         case 1
             cur_set = 'carr8_odd5';
-            title_str = '5 odd, 8 carr';
+            title_str = '5 odd, 8 ref';
         case 2
             cur_set = 'carr8_odd8';
-            title_str = '8 odd, 8 carr';
+            title_str = '8 odd, 8 ref';
         case 3
             cur_set = 'carr8_odd9';
-            title_str = '9 odd, 8 carr';
+            title_str = '9 odd, 8 ref';
         case 4
             cur_set = 'carr6_odd5';
-            title_str = '5 odd, 6 carr';
+            title_str = '5 odd, 6 ref';
         case 5
             cur_set = 'carr6_odd6';
-            title_str = '6 odd, 6 carr';
+            title_str = '6 odd, 6 ref';
         case 6
             cur_set = 'carr6_odd9';
-            title_str = '9 odd, 6 carr';
+            title_str = '9 odd, 6 ref';
         otherwise
     end
     
@@ -632,22 +646,22 @@ for z = 1:6
     switch z
         case 1
             cur_set = 'carr8_odd5';
-            title_str = '5 odd, 8 carr';
+            title_str = '5 odd, 8 ref';
         case 2
             cur_set = 'carr8_odd8';
-            title_str = '8 odd, 8 carr';
+            title_str = '8 odd, 8 ref';
         case 3
             cur_set = 'carr8_odd9';
-            title_str = '9 odd, 8 carr';
+            title_str = '9 odd, 8 ref';
         case 4
             cur_set = 'carr6_odd5';
-            title_str = '5 odd, 6 carr';
+            title_str = '5 odd, 6 ref';
         case 5
             cur_set = 'carr6_odd6';
-            title_str = '6 odd, 6 carr';
+            title_str = '6 odd, 6 ref';
         case 6
             cur_set = 'carr6_odd9';
-            title_str = '9 odd, 6 carr';
+            title_str = '9 odd, 6 ref';
         otherwise
     end
     subplot(2,3,z);
